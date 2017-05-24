@@ -11,7 +11,6 @@ import pprint
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
 
-
 __all__ = [
     'inf',
     'PropertyCardinalityError',
@@ -54,10 +53,13 @@ class PropertyCardinalityError(Exception):
         message = "Cannot {} property '{}': cardinality [{}..{}]"
         message = message.format(method, description.name, description.cmin, description.cmax)
         super(PropertyCardinalityError, self).__init__(message)
+# class PropertyCardinalityError
+
 class PropertyTypeError(Exception):
     def __init__(self, type_, description):
         message = "Expected '{}' but got '{}'".format(description.type, type_)
         super(PropertyTypeError, self).__init__(message)
+# class PropertyTypeError
 
 # ------------------------------------------------------------------------------
 # Property classes to declaratively define FHIR model.
@@ -88,6 +90,7 @@ class PropertyDefinition(object):
             'repr': self.repr,
         }
         return "PropertyDefinition('{name}', '{type}', '{cmin}', '{cmax}', '{repr}')".format(**params)
+# class PropertyDefinition
 
 class PropertyMixin(object):
     def coerce_type(self, value):
@@ -120,7 +123,7 @@ class PropertyMixin(object):
             print('')
             print(constructor, self._definition)
             raise PropertyTypeError(value.__class__.__name__, self._definition)
-# PropertyMixin
+# class PropertyMixin
         
 class Property(PropertyMixin):
     _cls_counter = 0
@@ -204,7 +207,7 @@ class PropertyList(list, PropertyMixin):
 # ------------------------------------------------------------------------------
 class FHIRBase(object):
     """Base class for all FHIR resources and elements."""
-    
+
     def __init__(self, value=None):
         """Create a new instance."""
         self.value = value
