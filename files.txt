@@ -1,0 +1,7 @@
+files.txt
+generate.py
+base.py
+config.yaml
+template/template___init__.tpl
+template/template_item.tpl
+template/template_type.tpl

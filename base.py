@@ -1,0 +1,92 @@
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+from collections import OrderedDict
+
+ 
+PRIMITIVE_TYPES = OrderedDict([
+    # ('Element', 'Element'),
+    ('markdown', 'str'),
+    ('integer', 'int'),
+    ('dateTime', 'dateTimeBase'),
+    ('unsignedInt', 'int'),
+    ('code', 'str'),
+    ('date', 'dateTimeBase'),
+    ('decimal', 'float'),
+    ('uri', 'str'),
+    ('id', 'str'),
+    ('base64Binary', 'str'),
+    ('time', 'dateTimeBase'),
+    ('oid', 'str'),
+    ('positiveInt', 'int'),
+    ('string', 'str'),
+    ('boolean', 'bool'),
+    ('uuid', 'str'),
+    ('instant', 'dateTimeBase'),
+    ('xhtml', 'str'),
+])
+
+METHODS = OrderedDict([
+    ('eq',   ['str', 'float', 'int']),
+    ('ne',   ['str', 'float', 'int']),
+    ('lt',   ['str', 'float', 'int']),
+    ('le',   ['str', 'float', 'int']),
+    ('gt',   ['str', 'float', 'int']),
+    ('ge',   ['str', 'float', 'int']),
+    # ('cmp',  ['int', 'float']),
+])
+
+COMPLEX_TYPES = [
+    'Period',
+    'Coding',
+    'Range',
+    'Quantity',
+    'Attachment',
+    'Ratio',
+    'Annotation',
+    'SampledData',
+    'Reference',
+    'CodeableConcept',
+    'Identifier',
+    'Signature',
+    'Extension',
+    'BackboneElement',
+    'Narrative',
+    'ElementDefinition',
+    'Timing',
+    'Address',
+    'HumanName',
+    'Meta',
+    'ContactPoint',
+    'Age',
+    'Count',
+    'Money',
+    'Distance',
+    'Duration',
+    'SimpleQuantity'
+]
+
+VALUE_X = {
+	'valueInteger' : 'integer',
+	'valueDecimal' : 'decimal',
+	'valueDateTime' : 'datetime',
+	'valueDate' : 'date',
+	'valueInstant' : 'instant',
+	'valueString' : 'string',
+	'valueUri' : 'uri',
+	'valueBoolean' : 'boolean',
+	'valueCode' : 'code',
+	'valueBase64Binary' : 'base64Binary',
+	'valueCoding' : 'Coding',
+	'valueCodeableConcept' : 'CodeableConcept',
+	'valueAttachment' : 'Attachment',
+	'valueIdentifier' : 'Identifier',
+	'valueQuantity' : 'Quantity',
+	'valueRange' : 'Range',
+	'valuePeriod' : 'Period',
+	'valueRatio' : 'Ratio',
+	'valueHumanName' : 'HumanName',
+	'valueAddress' : 'Address',
+	'valueContactPoint' : 'ContactPoint',
+	'valueSchedule' : 'Schedule',
+	'valueReference' : 'Reference',
+}

@@ -1,0 +1,37 @@
+app_name: FHIR Code Generator
+
+applications:
+  unittest:
+    logging:
+      level:        DEBUG                  # Can be on of 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+      file:         logs/unittest.log      # Filename of logfile
+      use_console:  False                  # Log output to the console?
+      backup_count: 5                      # Number of logs to keep
+      max_size:     1024                   # Specified in kB (i.e. 1024 means a maximum file size of 1MB)
+      format:       "%(asctime)s - %(name)-14s - %(levelname)-8s - %(message)s"
+  
+  generate:
+    logging:
+      level:        DEBUG                  # Can be on of 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+      file:         logs/generate.log      # Filename of logfile
+      use_console:  True                  # Log output to the console?
+      backup_count: 5                      # Number of logs to keep
+      max_size:     1024                   # Specified in kB (i.e. 1024 means a maximum file size of 1MB)
+      format:       "%(asctime)s - %(name)-14s - %(levelname)-8s - %(message)s"
+    
+    clear_folder: True
+    ftype: input/profiles-types.xml
+    fresource: input/profiles-resources.xml
+    # items: [Element, BackboneElement, Patient]
+    items: [Patient]
+
+environments:
+  prod:
+    description: Production
+    type: production
+    uri: mysql://alchemist:PfJWG8RZDQ9d7enx@localhost/alchemist
+  
+  test:
+    description: Test
+    type: test
+    uri: sqlite://test.db
