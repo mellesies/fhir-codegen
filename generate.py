@@ -216,7 +216,7 @@ def item_from_structure_definition(name, structure_definitions):
                 
                 if t == 'Reference':
                     url = getValue(type_, 'profile')
-                    t = 'Reference(\'{}\')'.format(url)
+                    t = 'Reference(reference=\'{}\')'.format(url)
                     
                 types_.append(t)
             

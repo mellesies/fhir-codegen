@@ -57,9 +57,14 @@ class PropertyCardinalityError(Exception):
 
 class PropertyTypeError(Exception):
     def __init__(self, type_, description):
-        message = "Expected '{}' but got '{}'".format(description.type, type_)
-        super(PropertyTypeError, self).__init__(message)
+        msg = "Expected '{}' but got '{}'".format(description.type, type_)
+        super(PropertyTypeError, self).__init__(msg)
 # class PropertyTypeError
+
+class InvalidAttributeError(Exception):
+    def __init__(self, resource_or_element, attr):
+        msg = "The attribute '{}' is not a valid property for '{}'.".format(attr, resource_or_element)
+        super(InvalidAttributeError, self).__init__(msg)
 
 # ------------------------------------------------------------------------------
 # Property classes to declaratively define FHIR model.
@@ -140,6 +145,7 @@ class Property(PropertyMixin):
         """
         self._creation_order = self.__get_creation_counter()
         self._definition = definition
+        self._name = definition.name
     
     def __get__(self, instance, owner):
         if instance is None:
@@ -147,20 +153,16 @@ class Property(PropertyMixin):
             return self
         
         # instance attribute accessed on instance, return value
-        # print(self._definition.name)
-        value = getattr(instance, '__' + self._definition.name, None)
+        if (self._definition.cmax > 1):
+            instance._property_values.setdefault(self._name, PropertyList(self._definition))
         
-        if (self._definition.cmax > 1) and (value is None):
-            value = PropertyList(self._definition)
-            setattr(instance, '__' + self._definition.name, value)
-        
-        return value
+        return instance._property_values.get(self._name)
     
     def __set__(self, instance, value):
         if self._definition.cmax > 1: 
             raise PropertyCardinalityError('set', self._definition.name)
 
-        setattr(instance, '__' + self._definition.name, self.coerce_type(value))
+        instance._property_values[self._name] = self.coerce_type(value)
 
     
     def __repr__(self):
@@ -207,11 +209,20 @@ class PropertyList(list, PropertyMixin):
 # ------------------------------------------------------------------------------
 class FHIRBase(object):
     """Base class for all FHIR resources and elements."""
+    _allowed_attributes = ['_property_values', '_value']
 
-    def __init__(self, value=None):
+    def __init__(self, **kwargs):
         """Create a new instance."""
-        self.value = value
+        self._property_values = dict()
+        for attr, value in kwargs.items():
+            setattr(self, attr, value)
     
+    def __setattr__(self, attr, value):
+        if (attr not in self._allowed_attributes) and (attr not in self._getProperties()):
+            raise InvalidAttributeError(type(self).__name__, attr)
+
+        super().__setattr__(attr, value)
+
     def _getProperties(self):
         """Return a list (ordered) of instance attribute names that are of type 
         'Property'
@@ -301,11 +312,16 @@ class FHIRBase(object):
 class Element(FHIRBase):
     """Base definition for all elements in a resource."""
     _timestamp = {{timestamp}}
-    
     _url = 'http://hl7.org/fhir/StructureDefinition/Element'
     
     id = Property(PropertyDefinition('id', 'id', '0', '1'))
     extension = Property(PropertyDefinition('extension', 'Extension', '0', '*'))
+
+    def __init__(self, value=None, **kwargs):
+        super().__init__(**kwargs)
+
+        if value:
+            self.value = value
 # class Element
 
 class Extension(Element):
@@ -328,7 +344,7 @@ class Extension(Element):
 
 class BaseType(Element):
     """Base for basic/simple types."""
-        
+    
     def __repr__(self):
         """repr(x) <==> x.__repr__()"""
         return repr(self.value)
