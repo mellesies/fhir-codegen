@@ -209,7 +209,7 @@ class PropertyList(list, PropertyMixin):
 # ------------------------------------------------------------------------------
 class FHIRBase(object):
     """Base class for all FHIR resources and elements."""
-    _allowed_attributes = ['_property_values', '_value']
+    _allowed_attributes = ['_property_values']
 
     def __init__(self, **kwargs):
         """Create a new instance."""
@@ -379,8 +379,13 @@ class dateTimeBase(BaseType):
     months, days, hours, etc. As a side effect, parsing a string with only a 
     year e.g. strptime('2015', '%Y') automatically sets the month to january!?
     """
-    _regex = None
+    _allowed_attributes = list(FHIRBase._allowed_attributes)
+    _allowed_attributes.extend([
+        '_value'
+    ])
     
+    _regex = None
+
     def __init__(self, value):
         if self._regex and re.match(self._regex, value):
             # The logic below would ideally be implemented by the subclass in
