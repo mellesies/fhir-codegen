@@ -57,7 +57,7 @@ class PropertyCardinalityError(Exception):
 
 class PropertyTypeError(Exception):
     def __init__(self, type_, description):
-        msg = "Expected '{}' but got '{}'".format(description.type, type_)
+        msg = "Expected '{}' but got '{}' for '{}'".format(description.type, type_, description.name)
         super(PropertyTypeError, self).__init__(msg)
 # class PropertyTypeError
 
@@ -108,8 +108,12 @@ class PropertyMixin(object):
         
         if isinstance(self._definition.type, list):
             logger.warn('Not coercing properties with multiple types just yet')
-            return value
+            if type(value).__name__ not in self._definition.type:
+                # FIXME: change to more meaningful exception!
+                raise ValueError
 
+            return value
+        
         # If the following matches, we need to lazily evaluate the type
         if isinstance(self._definition.type, str):
             this = sys.modules[__name__]
@@ -124,9 +128,13 @@ class PropertyMixin(object):
         # If we're still here, try to coerce/cast ..
         try:
             return constructor(value)
-        except:
-            print('')
-            print(constructor, self._definition)
+        except Exception as e:
+            print('!' * 80)
+            print(e)
+            print(constructor)
+            print(value)
+            print(self._definition)
+            print('!' * 80)
             raise PropertyTypeError(value.__class__.__name__, self._definition)
 # class PropertyMixin
         
@@ -222,6 +230,7 @@ class FHIRBase(object):
             raise InvalidAttributeError(type(self).__name__, attr)
 
         super().__setattr__(attr, value)
+    # def __setattr__
 
     def _getProperties(self):
         """Return a list (ordered) of instance attribute names that are of type 
@@ -237,7 +246,59 @@ class FHIRBase(object):
         properties = [p._definition.name for p in properties]
         
         return properties
-    
+    # def _getProperties
+
+    @classmethod
+    def marshallXML(cls, xmlstring):
+        """Marshall a Resource from its XML representation."""
+
+        def marshalRec(tag, instance, level=1):
+            spaces = '  ' * level
+            property_name = tag.tag
+            property_ = getattr(instance.__class__, property_name)
+            desc = property_._definition
+
+            print('{}{} ({})'.format(spaces, property_name, property_))
+
+            # Simple types have a 'value' property; complex types don't. Aditionally, the 
+            # value-property's representation should be 'xmlAttr'.
+            simple_type = hasattr(desc.type, 'value') and getattr(desc.type, 'value')._definition.repr == 'xmlAttr'
+
+            if simple_type:
+                value = tag.get('value')
+            else:
+                # Create a new complex type instance via its constructor
+                value = desc.type()
+
+            if desc.cmax == 1:
+                setattr(instance, property_name, value)
+            elif desc.cmax > 1:
+                getattr(instance, property_name).append(value)
+
+            # Iterate over the tag's children: even simple types can have extensions!
+            if not simple_type:
+                instance = value
+
+            for child_tag in tag:
+                marshalRec(child_tag, instance, level+1)
+        # def marshalRec
+
+        self = cls()
+
+        # Remove the default namespace definition (xmlns="http://some/namespace")
+        xmlstring = re.sub('\\sxmlns="[^"]+"', '', xmlstring, count=1)
+        root = ET.fromstring(xmlstring)
+        if root.tag != self.__class__.__name__:
+            print('*** WARNING: trying to marshall a {} in a {} ***'.format(root.tag, self.__class__.__name__))
+        
+        print('')
+        print(cls.__name__)
+        for tag in root:
+            marshalRec(tag, self)
+
+        return self
+    # def marshallXML
+
     def serialize(self, format_='xml'):
         if format_ in ['xml', 'json']:
             format_ = format_.upper()
@@ -269,6 +330,7 @@ class FHIRBase(object):
           <extension url='url'>
             <stringValue value='value'/>
           </extension>
+          <multiDateTime value="2080-01-01T00:00:00Z"/>
         </parent>
         """
         if parent is None:            
@@ -285,12 +347,6 @@ class FHIRBase(object):
             desc = getattr(type(self), attr)._definition
             path_str = '.'.join(path + [attr, ])
             
-            
-            # if isinstance(value, BaseType):
-            #     print('{} ({})'.format(path_str, value.__class__.__name__))
-            # else:
-            #     print('{}: {} ({})'.format(path_str, value, type(value)))
-            
             if value is not None:
                 if desc.repr == 'xmlAttr':
                     parent.set(attr, str(value))
@@ -300,7 +356,15 @@ class FHIRBase(object):
                         p.toXML(ET.SubElement(parent, attr), path + [attr, ])
                         
                 elif isinstance(value, FHIRBase):
+                    if isinstance(desc.type, list):
+                        class_name = value.__class__.__name__
+                        class_name = class_name[0].upper() +class_name[1:]
+                        attr = attr + class_name 
                     value.toXML(ET.SubElement(parent, attr), path + [attr, ])
+                
+                else:
+                    print(value, type(value))
+                    raise Exception('unknown property type!?')
         
         
         # Only the root element needs to generate the actual XML.
@@ -320,7 +384,7 @@ class Element(FHIRBase):
     def __init__(self, value=None, **kwargs):
         super().__init__(**kwargs)
 
-        if value:
+        if value is not None:
             self.value = value
 # class Element
 
@@ -340,6 +404,7 @@ class Extension(Element):
         '0', 
         '1')
     )
+
 # class Extension
 
 class BaseType(Element):
@@ -383,10 +448,12 @@ class dateTimeBase(BaseType):
     _allowed_attributes.extend([
         '_value'
     ])
-    
+
     _regex = None
 
     def __init__(self, value):
+        super().__init__(value)
+
         if self._regex and re.match(self._regex, value):
             # The logic below would ideally be implemented by the subclass in
             # question, but this makes generating the subclasses much easier.
