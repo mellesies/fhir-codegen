@@ -92,19 +92,20 @@ class boolean_(int):
             return "true"
         else:
             return "false"
-            
-    def __str__(self):
-        if self:
-            return "true"
-        else:
-            return "false"
+    
+    __str__ = __repr__
 
-class boolean(int, fhir.BaseType):
+class boolean(fhir.BaseType):
     """Adapted from https://www.python.org/dev/peps/pep-0285/"""
     
     value = Property(PropertyDefinition('value', boolean_, '1', '1', 'xmlAttr'))
     
     def __init__(self, value):
+        if value == "true":
+            value = 1
+        elif value == "false":
+            value = 0
+        
         super(boolean, self).__init__(value)
     
     def __repr__(self):
@@ -113,12 +114,12 @@ class boolean(int, fhir.BaseType):
         else:
             return "false"
 
-    def __str__(self):
-        if self.value:
-            return "true"
-        else:
-            return "false"
+    __str__ = __repr__
 
+    def __eq__(self, other):
+        # if self.value is None:
+        #     return other is None
+        return bool(int(self.value) == int(other))
 
     def __and__(self, other):
         if isinstance(other, bool) or isinstance(other, boolean):

@@ -4,49 +4,13 @@ import unittest
 import logging
 import pprint
 
+import xml.etree.ElementTree as ET
+from formencode.doctest_xml_compare import xml_compare
+
 import fhir
-# import fhir
-
-# class LoadDataAsElementTree(unittest.TestCase):
-#
-#     def test_load_types(self):
-#         ftype = "input/profiles-types.xml"
-#         et_types = run.load_file_as_elementtree(ftype)
-#         self.assertIsNotNone(et_types)
-#
-#     def test_load_resources(self):
-#         fresource = "input/profiles-resources.xml"
-#         et_resources = run.load_file_as_elementtree(fresource)
-#         self.assertIsNotNone(et_resources)
         
 
-class TestTypes(unittest.TestCase):
-    
-    def test_x(self):
-        p = fhir.Patient()
-        p.id = 'http://fhir.zakbroek.com/Patient/1'
-        
-        name = fhir.HumanName()
-        name.use = 'official'
-        name.given.append('Melle')
-        name.given.append('Sjoerd')
-        name.family.append('Sieswerda')
-        p.name.append(name)
-        p.active = True
-
-        identifier = fhir.Identifier()
-        identifier.value = '123456789'
-        p.identifier.append(identifier)
-
-        # e = fhir.Extension()
-        # e.url = 'http://hl7.org/fhir/StructureDefinition/patient-birthTime'
-        # e.value = '2016-01-01T02:00:00Z'
-        # p.id.extension.append(e)
-        
-        print()
-        print()
-        print(p.serialize('xml'))
-        print()
+class TestSimpleTypes(unittest.TestCase):
     
     def test_string(self):
         t = 'test'
@@ -105,6 +69,14 @@ class TestTypes(unittest.TestCase):
         self.assertEquals(t or f, True)
         self.assertEquals(f, False)
     
+    def test_boolean2(self):
+        t = fhir.boolean("true")
+        f = fhir.boolean("false")
+        
+        self.assertEquals(t, True)
+        self.assertEquals(f, False)
+
+
     def test_dateTime(self):
         datetime_as_string = '2016-12-01T00:00:00Z'
         dt = fhir.dateTime(datetime_as_string)

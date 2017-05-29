@@ -1,0 +1,23 @@
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+import unittest
+import logging
+import pprint
+
+import xml.etree.ElementTree as ET
+from formencode.doctest_xml_compare import xml_compare
+
+import fhir
+        
+
+class TestComplexTypes(unittest.TestCase):
+    
+    def test_humanname(self):
+        name = fhir.HumanName()
+        name.use = 'official'
+        name.given.append('Melle')
+        name.given.append('Sjoerd')
+        name.family.append('Sieswerda')
+
+        # print(name.toXML())
+        
