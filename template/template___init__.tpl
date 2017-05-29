@@ -114,6 +114,20 @@ class PropertyMixin(object):
                     raise ValueError
             
                 return value
+
+            this = sys.modules[__name__]
+
+            for type_ in self._definition.type:
+                constructor = getattr(this, type_)
+                try:
+                    value = constructor(value)
+                except PropertyTypeError as e:
+                    # print("Apparently '{}' is not a '{}'".format(value, type_))
+                    pass
+                else:
+                    return value
+            else:
+                raise Exception("Could not find a proper type for value '{}' in {}".format(value, self._definition.type))
         
         # If the following matches, we need to lazily evaluate the type
         if isinstance(self._definition.type, str):
@@ -130,12 +144,12 @@ class PropertyMixin(object):
         try:
             return constructor(value)
         except Exception as e:
-            print('!' * 80)
-            print(e)
-            print(constructor)
-            print(value)
-            print(self._definition)
-            print('!' * 80)
+            # print('!' * 80)
+            # print(e)
+            # print(constructor)
+            # print(value)
+            # print(self._definition)
+            # print('!' * 80)
             raise PropertyTypeError(value.__class__.__name__, self._definition)
 # class PropertyMixin
         

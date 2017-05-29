@@ -56,10 +56,19 @@ class TestMultiple(unittest.TestCase):
 
         self.assertTrue(xml_compare(x1, x2), 'Serialized DomainReource does not match expected XML representation!')
 
-    def test_multipleAssignmentError(self):
+    def test_assignmentError(self):
         
         m = Multiple()
         
         with self.assertRaises(ValueError):
             m.multi = fhir.string('hello sweetie!')
 
+    def test_directAssignment(self):
+        m = Multiple()
+        m.multi = True
+
+    def test_directAssignmentError(self):
+        m = Multiple()
+
+        with self.assertRaises(Exception):
+            m.multi = "untrue"
