@@ -107,12 +107,13 @@ class PropertyMixin(object):
             return None
         
         if isinstance(self._definition.type, list):
-            logger.warn('Not coercing properties with multiple types just yet')
-            if type(value).__name__ not in self._definition.type:
-                # FIXME: change to more meaningful exception!
-                raise ValueError
-
-            return value
+            # multi = Property(PropertyDefinition('multi', ['boolean', 'dateTime'], '0', '1'))
+            if isinstance(value, FHIRBase):
+                if type(value).__name__ not in self._definition.type:
+                    # FIXME: change to more meaningful exception!
+                    raise ValueError
+            
+                return value
         
         # If the following matches, we need to lazily evaluate the type
         if isinstance(self._definition.type, str):
@@ -254,18 +255,40 @@ class FHIRBase(object):
 
         def marshalRec(tag, instance, level=1):
             spaces = '  ' * level
+
+            # The tag provides the attribute's name. Get the property(definition)
+            # based on this name.
             property_name = tag.tag
+            property_type = ''
+
+            if not hasattr(instance.__class__, property_name):
+                for attr in instance._getProperties():
+                    if property_name.startswith(attr):
+                        property_type = property_name.replace(attr, '')
+                        property_type = property_type[0].lower() + property_type[1:]
+                        property_name = attr
+                        break
+                else:
+                    raise Exception("Cannot find property '{}' on resource '{}'".format(property_name, instance.__class__.__name__))
+
             property_ = getattr(instance.__class__, property_name)
             desc = property_._definition
 
-            print('{}{} ({})'.format(spaces, property_name, property_))
+            # print('{}{} ({})'.format(spaces, property_name, property_))
 
-            # Simple types have a 'value' property; complex types don't. Aditionally, the 
-            # value-property's representation should be 'xmlAttr'.
-            simple_type = hasattr(desc.type, 'value') and getattr(desc.type, 'value')._definition.repr == 'xmlAttr'
+            # Determine the data type of the property. Simple types have themselves a 
+            # 'value' property that is rendered as an attribute in the xml tag.
+            simple_type = hasattr(desc.type, 'value') \
+                            and getattr(desc.type, 'value')._definition.repr == 'xmlAttr'
 
-            if simple_type:
+            if simple_type or property_type != '':
                 value = tag.get('value')
+
+                if property_type:
+                    import sys
+                    this = sys.modules[__name__]
+                    constructor = getattr(this, property_type)
+                    value = constructor(value)
             else:
                 # Create a new complex type instance via its constructor
                 value = desc.type()
@@ -291,8 +314,8 @@ class FHIRBase(object):
         if root.tag != self.__class__.__name__:
             print('*** WARNING: trying to marshall a {} in a {} ***'.format(root.tag, self.__class__.__name__))
         
-        print('')
-        print(cls.__name__)
+        # print('')
+        # print(cls.__name__)
         for tag in root:
             marshalRec(tag, self)
 
@@ -358,7 +381,7 @@ class FHIRBase(object):
                 elif isinstance(value, FHIRBase):
                     if isinstance(desc.type, list):
                         class_name = value.__class__.__name__
-                        class_name = class_name[0].upper() +class_name[1:]
+                        class_name = class_name[0].upper() + class_name[1:]
                         attr = attr + class_name 
                     value.toXML(ET.SubElement(parent, attr), path + [attr, ])
                 
@@ -388,6 +411,20 @@ class Element(FHIRBase):
             self.value = value
 # class Element
 
+# class ExtensionType(type):
+#     def __getattr__(cls, attr):
+#         print('*' * 80)
+#         print('__getattr__')
+#         print('Someone is asking for {}!'.format(attr))
+#         print('*' * 80)
+
+#         if attr.startswith('value'):
+#             return getattr(self, 'value')
+
+#         raise AttributeError
+# class ExtensionType
+
+# class Extension(Element, metaclass=ExtensionType):
 class Extension(Element):
     """Optional Extensions Element - found in all resources."""
     _url = 'http://hl7.org/fhir/StructureDefinition/Extension'
@@ -478,7 +515,7 @@ class dateTimeBase(BaseType):
     
     def __str__(self):
         return self._value
-        
+# class dateTimeBase 
 
 
 # Import basic types into module/package 'fhir'
@@ -487,7 +524,8 @@ from fhir._{{t.classname.lower()}} import {{t.classname}}
 {% endfor %}
 
 # Import complex types and resources into module/package 'fhir'
-{% for t in processed_items %}
+from fhir.resource import Resource
+{% for t in processed_items if not t == 'Resource' %}
 from fhir.{{t.lower()}} import {{t}}
 {% endfor %}
 
