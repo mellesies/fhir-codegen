@@ -98,49 +98,66 @@ class PropertyDefinition(object):
 # class PropertyDefinition
 
 class PropertyMixin(object):
+    def coerce_multi_type(self, value, types):
+        """
+            For properties that support more than one type, first check if the
+            provided value actually is of one of these types. If not, we'll try
+            to cast to a supported value by simply trying each supported type.
+            
+            Example of a property that supports more than one type:
+                multi = Property(PropertyDefinition('multi', ['boolean', 'dateTime'], '0', '1'))
+        """
+        if isinstance(value, Element):
+            if type(value).__name__ not in types:
+                # FIXME: change to more meaningful exception!
+                raise ValueError
+        
+            return value
+        
+        # Ok, so value is not (yet) a fhir type. Try to find a supported type.
+        import sys
+        this = sys.modules[__name__]
+
+        for type_ in self._definition.type:
+            constructor = getattr(this, type_)
+
+            try:
+                value = constructor(value)
+            except PropertyTypeError as e:
+                # print("Apparently '{}' is not a '{}'".format(value, type_))
+                pass
+            else:
+                return value
+        
+        raise Exception("Could not find a proper type for value '{}' in {}".format(value, self._definition.type))
+    # def coerce_multi_type
+    
     def coerce_type(self, value):
         """Coerce/cast value to correspond to PropertyDefinition."""
         logger = logging.getLogger('PropertyMixin')
-        import sys
+        type_ = self._definition.type
         
         if value is None:
             return None
         
-        if isinstance(self._definition.type, list):
-            # multi = Property(PropertyDefinition('multi', ['boolean', 'dateTime'], '0', '1'))
-            if isinstance(value, FHIRBase):
-                if type(value).__name__ not in self._definition.type:
-                    # FIXME: change to more meaningful exception!
-                    raise ValueError
-            
-                return value
-
-            this = sys.modules[__name__]
-
-            for type_ in self._definition.type:
-                constructor = getattr(this, type_)
-                try:
-                    value = constructor(value)
-                except PropertyTypeError as e:
-                    # print("Apparently '{}' is not a '{}'".format(value, type_))
-                    pass
-                else:
-                    return value
-            else:
-                raise Exception("Could not find a proper type for value '{}' in {}".format(value, self._definition.type))
+        # Check for multi typed properties first. isinstance will complain if
+        # it recieves a list of strings as 2nd argument.
+        if isinstance(type_, list):
+            return self.coerce_multi_type(value, type_)
         
-        # If the following matches, we need to lazily evaluate the type
-        if isinstance(self._definition.type, str):
-            this = sys.modules[__name__]
-            constructor = getattr(this, self._definition.type)
-        else:
-            constructor = self._definition.type
-        
-        # If the following matches, we don't need to do anything ... 
-        if isinstance(value, Element) and (value._url == constructor._url):
+        # If value already has the correct type, we don't need to do anything.
+        if isinstance(value, Element) and isinstance(value, type_):
             return value
+
+        # If we're still here, try to coerce/cast. First find the constructor.
+        if isinstance(type_, str):
+            # PropertyDefinition.type is defined as string --> lazily evaluate.
+            this = sys.modules[__name__]
+            constructor = getattr(this, type_)
+        else:
+            # PropertyDefinition.type is already set to a constructor
+            constructor = type_
         
-        # If we're still here, try to coerce/cast ..
         try:
             return constructor(value)
         except Exception as e:
