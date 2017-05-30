@@ -26,8 +26,6 @@ class Base(object):
     def __tablename__(cls):
         return cls.__name__.lower()
 
-    __table_args__ = {'mysql_engine': 'InnoDB'}
-
     def __iter__(self):
         """x.__iter__() <==> iter(x)"""
         keys = inspect(self.__class__).columns.keys()
@@ -39,29 +37,26 @@ class Base(object):
     def log(self):
         return logging.getLogger(self.__class__.__name__)
 
-    @property
-    def session(self):
-        return Session()
 
-    def save(self):
-        """Commit any changes to the database."""
-        session = Session.object_session(self)
+class Resource(Base):
+    """Example DB model class."""
 
-        if session is None:
-            session = self.session
-            session.add(self)
+    _id = Column(Integer, primary_key=True)
 
-        session.commit()
+    # Attributes
+    id = Column(String(50))
+    resource_type = Column(String(50))
+
 
 # ------------------------------------------------------------------------------
 # Example
 # ------------------------------------------------------------------------------
-class Example(Base):
-    """Example DB model class."""
+# class Example(Base):
+#     """Example DB model class."""
 
-    id = Column(Integer, primary_key=True)
+#     id = Column(Integer, primary_key=True)
 
-    # Attributes
-    name = Column(String(50))
-    state = Column(Boolean)
+#     # Attributes
+#     name = Column(String(50))
+#     state = Column(Boolean)
 
