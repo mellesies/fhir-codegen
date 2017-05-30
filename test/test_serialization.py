@@ -7,7 +7,7 @@ import pprint
 import xml.etree.ElementTree as ET
 from formencode.doctest_xml_compare import xml_compare
 
-import fhir
+import fhir.model
         
 
 class TestSerialization(unittest.TestCase):
@@ -30,7 +30,7 @@ class TestSerialization(unittest.TestCase):
                 <deceasedBoolean value="true"/>
             </Patient>
         """
-        p = fhir.Patient.marshallXML(xmlstring)
+        p = fhir.model.Patient.marshallXML(xmlstring)
         x1 = ET.fromstring(xmlstring)
         x2 = ET.fromstring(p.toXML())
 
@@ -44,7 +44,7 @@ class TestSerialization(unittest.TestCase):
                 <birthDate value="1980-06-09"/>
             </Patient>
         """
-        p = fhir.Patient.marshallXML(xmlstring)
+        p = fhir.model.Patient.marshallXML(xmlstring)
         x1 = ET.fromstring(xmlstring)
         x2 = ET.fromstring(p.toXML())
 
@@ -62,7 +62,7 @@ class TestSerialization(unittest.TestCase):
                 </birthDate>
             </Patient>
         """
-        p = fhir.Patient.marshallXML(xmlstring)
+        p = fhir.model.Patient.marshallXML(xmlstring)
         x1 = ET.fromstring(xmlstring)
         x2 = ET.fromstring(p.toXML())
 

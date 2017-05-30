@@ -7,11 +7,11 @@ import pprint
 import xml.etree.ElementTree as ET
 from formencode.doctest_xml_compare import xml_compare
 
-import fhir
-from fhir import Property, PropertyDefinition
-from fhir import FHIRBase, Element, Extension
-from fhir.backboneelement import BackboneElement
-from fhir.domainresource import DomainResource
+import fhir.model
+from fhir.model import Property, PropertyDefinition
+from fhir.model import FHIRBase, Element, Extension
+from fhir.model.backboneelement import BackboneElement
+from fhir.model.domainresource import DomainResource
 
 class Multiple(DomainResource):
     _url = 'urn:test'
@@ -27,9 +27,8 @@ class TestMultiple(unittest.TestCase):
             <multiBoolean value="true"/>
         </Multiple>
         """
-
         m = Multiple()
-        m.multi = fhir.boolean(True)
+        m.multi = fhir.model.boolean(True)
 
         x1 = ET.fromstring(xmlstring)
         x2 = ET.fromstring(m.toXML())
@@ -49,7 +48,7 @@ class TestMultiple(unittest.TestCase):
         """
 
         m = Multiple()
-        m.multi = fhir.dateTime("2080-01-01T00:00:00Z")
+        m.multi = fhir.model.dateTime("2080-01-01T00:00:00Z")
 
         x1 = ET.fromstring(xmlstring)
         x2 = ET.fromstring(m.toXML())
@@ -57,11 +56,10 @@ class TestMultiple(unittest.TestCase):
         self.assertTrue(xml_compare(x1, x2), 'Serialized DomainReource does not match expected XML representation!')
 
     def test_assignmentError(self):
-        
         m = Multiple()
         
         with self.assertRaises(ValueError):
-            m.multi = fhir.string('hello sweetie!')
+            m.multi = fhir.model.string('hello sweetie!')
 
     def test_directAssignment(self):
         m = Multiple()

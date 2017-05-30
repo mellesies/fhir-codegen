@@ -6,12 +6,17 @@ from datetime import datetime
 from time import time
 
 import sys
+import os
 import logging
 import xml.etree.ElementTree as ET
 import textwrap
 
 import base
 from jinja2 import Template
+
+ROOT_FOLDER='fhir'
+MODEL_FOLDER='model'
+
 
 def load_file_as_elementtree(filename):
     import re
@@ -24,6 +29,7 @@ def load_file_as_elementtree(filename):
         # Remove the default namespace definition (xmlns="http://some/namespace")
         xmlstring = re.sub('\\sxmlns="[^"]+"', '', xmlstring, count=1)
         return ET.fromstring(xmlstring)
+# def load_file_as_elementtree
 
 def get_structure_definitions(*trees):
     """Extract StructureDefinition resources from XML trees.
@@ -45,12 +51,23 @@ def get_structure_definitions(*trees):
         structure_definitions[sd_name] = sd
     
     return structure_definitions
-
+# def get_structure_definitions
 
 # ------------------------------------------------------------------------------
 # Generate source
 # ------------------------------------------------------------------------------
-def write_init(processed_items=None):
+def write_package_init():
+
+    with open('template/template__package__init__.tpl') as fp:
+        tpl = fp.read()
+    
+    filename = os.path.join(ROOT_FOLDER, '__init__.py')
+    t = Template(tpl, lstrip_blocks=True, trim_blocks=True)
+    t.stream().dump('{}'.format(filename))
+    
+
+
+def write_model_init(processed_items=None):
     if processed_items is None:
         processed_items = list()
     
@@ -70,8 +87,11 @@ def write_init(processed_items=None):
         'processed_items': processed_items,
         'timestamp': int(time()),
     }
-    Template(tpl, lstrip_blocks=True, trim_blocks=True).stream(**kwargs).dump('fhir/__init__.py')
 
+    folder = os.path.join(ROOT_FOLDER, MODEL_FOLDER)
+    t = Template(tpl, lstrip_blocks=True, trim_blocks=True)
+    t.stream(**kwargs).dump('{}/__init__.py'.format(folder))
+# def write_model_init
 
 def write_basic_types(structure_definitions):
     log = logging.getLogger(__name__)
@@ -105,16 +125,15 @@ def write_basic_types(structure_definitions):
             'regex': regex,
         }
     
-        t.stream(t=parameters, methods=base.METHODS).dump('fhir/_{}.py'.format(type_.lower()))
-
+        folder = os.path.join(ROOT_FOLDER, MODEL_FOLDER)
+        t.stream(t=parameters, methods=base.METHODS).dump('{}/_{}.py'.format(folder, type_.lower()))
+# def write_basic_types
 
 def write_items(structure_definitions, items, processed=None):
     log = logging.getLogger(__name__)
     
     if processed is None:
         processed = list()
-    
-    folder = 'fhir'
     
     with open('template/template_item.tpl') as fp:
         tpl = fp.read()
@@ -133,6 +152,7 @@ def write_items(structure_definitions, items, processed=None):
             'classes': classes,
         }
         
+        folder = os.path.join(ROOT_FOLDER, MODEL_FOLDER)
         t.stream(**kwargs).dump('{}/{}.py'.format(folder, name.lower()))
         
         unprocessed_dependecies  = [dep for dep in dependencies if dep not in processed]
@@ -142,14 +162,14 @@ def write_items(structure_definitions, items, processed=None):
     processed = processed + items
     processed.sort()
     return processed
-
+# def write_items
 
 def getValue(element, name, default=None):
     if (element is None) or (element.find(name) is None):
         return default
         
     return element.find(name).get('value')
-
+# def getValue
 
 
 def item_from_structure_definition(name, structure_definitions):
@@ -255,7 +275,7 @@ def item_from_structure_definition(name, structure_definitions):
                 raise
                 
     return root, implicit_classes, dependencies
-        
+# def item_from_structure_definition      
   
 
 def run(ftype, fresource, items, clear_folder=False):
@@ -274,23 +294,16 @@ def run(ftype, fresource, items, clear_folder=False):
     structure_definitions = get_structure_definitions(et_types, et_resources)
     
     if clear_folder:
-        import os
-        folder = 'fhir'
+        import shutil
         
-        for f in os.listdir(folder):
-            file_path = os.path.join(folder, f)
-            
-            try:
-                # print('removing file "{}"'.format(file_path))
-                os.unlink(file_path)
-            except Exception as e:
-                print(e)
+        shutil.rmtree(ROOT_FOLDER)
+        os.makedirs(os.path.join(ROOT_FOLDER, MODEL_FOLDER))
                 
-    
-    
     write_basic_types(structure_definitions)
     processed_items = write_items(structure_definitions, items)
-    write_init(processed_items)
+    write_model_init(processed_items)
+    write_package_init()
+# def run
     
     
 if __name__ == '__main__':

@@ -551,13 +551,13 @@ class dateTimeBase(BaseType):
 
 # Import basic types into module/package 'fhir'
 {% for t in basic_types %}
-from fhir._{{t.classname.lower()}} import {{t.classname}}
+from ._{{t.classname.lower()}} import {{t.classname}}
 {% endfor %}
 
 # Import complex types and resources into module/package 'fhir'
-from fhir.resource import Resource
+# from fhir.resource import Resource
 {% for t in processed_items if not t == 'Resource' %}
-from fhir.{{t.lower()}} import {{t}}
+from .{{t.lower()}} import {{t}}
 {% endfor %}
 
 # __all__ = [{% for t in types %}'{{t.classname}}', {% endfor %}]

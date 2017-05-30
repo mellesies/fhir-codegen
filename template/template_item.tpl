@@ -3,22 +3,22 @@ from __future__ import print_function
 import datetime as dt
 import logging
 
-from fhir import Property, PropertyDefinition
-from fhir import FHIRBase, Element, Extension
+from . import Property, PropertyDefinition
+from . import FHIRBase, Element, Extension
 
 {% if r.name != 'BackboneElement' and classes|length > 0 %}
-from fhir.backboneelement import BackboneElement
+from .backboneelement import BackboneElement
 {% endif %}
 {% if r.superclass not in ['object', 'FHIRBase', 'Element', 'Extension'] %}
-from fhir.{{r.superclass.lower()}} import {{r.superclass}}
+from .{{r.superclass.lower()}} import {{r.superclass}}
 {% endif %}
 
 {% for t in r.required_basic_types %}
-from fhir._{{t|lower}} import {{t}}
+from ._{{t|lower}} import {{t}}
 {% endfor %}
 
 {% for t in r.required_complex_types if t not in ['Element', 'Extension'] %}
-from fhir.{{t|lower}} import {{t}}
+from .{{t|lower}} import {{t}}
 {% endfor %}
 
 __all__ = ['{{r.name}}']

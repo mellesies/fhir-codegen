@@ -7,16 +7,16 @@ import pprint
 import xml.etree.ElementTree as ET
 from formencode.doctest_xml_compare import xml_compare
 
-import fhir
+import fhir.model
         
 
 class TestSimpleTypes(unittest.TestCase):
     
     def test_string(self):
         t = 'test'
-        s = fhir.string(t)
+        s = fhir.model.string(t)
         
-        self.assertTrue(isinstance(s, fhir.Element))
+        self.assertTrue(isinstance(s, fhir.model.Element))
         self.assertTrue(hasattr(s, 'id'))
         self.assertTrue(hasattr(s, 'extension'))
         
@@ -28,9 +28,9 @@ class TestSimpleTypes(unittest.TestCase):
         
     def test_integer(self):
         t = 5
-        i = fhir.integer(t)
+        i = fhir.model.integer(t)
         
-        self.assertTrue(isinstance(i, fhir.Element))
+        self.assertTrue(isinstance(i, fhir.model.Element))
         self.assertTrue(hasattr(i, 'id'))
         self.assertTrue(hasattr(i, 'extension'))
         
@@ -42,9 +42,9 @@ class TestSimpleTypes(unittest.TestCase):
 
     def test_float(self):
         t = 5.0
-        i = fhir.decimal(t)
+        i = fhir.model.decimal(t)
         
-        self.assertTrue(isinstance(i, fhir.Element))
+        self.assertTrue(isinstance(i, fhir.model.Element))
         self.assertTrue(hasattr(i, 'id'))
         self.assertTrue(hasattr(i, 'extension'))
         
@@ -57,10 +57,10 @@ class TestSimpleTypes(unittest.TestCase):
 
 
     def test_boolean(self):
-        t = fhir.boolean(True)
-        f = fhir.boolean(False)
+        t = fhir.model.boolean(True)
+        f = fhir.model.boolean(False)
         
-        self.assertTrue(isinstance(t, fhir.Element))
+        self.assertTrue(isinstance(t, fhir.model.Element))
         self.assertTrue(hasattr(t, 'id'))
         self.assertTrue(hasattr(t, 'extension'))
         
@@ -70,8 +70,8 @@ class TestSimpleTypes(unittest.TestCase):
         self.assertEquals(f, False)
     
     def test_boolean2(self):
-        t = fhir.boolean("true")
-        f = fhir.boolean("false")
+        t = fhir.model.boolean("true")
+        f = fhir.model.boolean("false")
         
         self.assertEquals(t, True)
         self.assertEquals(f, False)
@@ -79,19 +79,19 @@ class TestSimpleTypes(unittest.TestCase):
 
     def test_dateTime(self):
         datetime_as_string = '2016-12-01T00:00:00Z'
-        dt = fhir.dateTime(datetime_as_string)
+        dt = fhir.model.dateTime(datetime_as_string)
         self.assertEquals(str(dt), datetime_as_string)
-        self.assertRaises(ValueError, fhir.dateTime, '2016-12-01T00:00:01')
-        self.assertRaises(ValueError, fhir.dateTime, '2016-12-01T00:01:00')
-        self.assertRaises(ValueError, fhir.dateTime, '2016-12-01T01:00:00')
+        self.assertRaises(ValueError, fhir.model.dateTime, '2016-12-01T00:00:01')
+        self.assertRaises(ValueError, fhir.model.dateTime, '2016-12-01T00:01:00')
+        self.assertRaises(ValueError, fhir.model.dateTime, '2016-12-01T01:00:00')
         
         
     def test_date(self):
         date_as_string = '2016-12-01'
-        dt = fhir.date(date_as_string)
+        dt = fhir.model.date(date_as_string)
         self.assertEquals(str(dt), date_as_string)
         
     def test_time(self):
-        dt = fhir.time('00:00:00')
+        dt = fhir.model.time('00:00:00')
         self.assertEquals(str(dt), '00:00:00')
         

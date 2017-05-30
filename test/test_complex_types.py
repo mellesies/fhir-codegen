@@ -7,13 +7,13 @@ import pprint
 import xml.etree.ElementTree as ET
 from formencode.doctest_xml_compare import xml_compare
 
-import fhir
+import fhir.model
         
 
 class TestComplexTypes(unittest.TestCase):
     
     def test_humanname(self):
-        name = fhir.HumanName()
+        name = fhir.model.HumanName()
         name.use = 'official'
         name.given.append('Melle')
         name.given.append('Sjoerd')

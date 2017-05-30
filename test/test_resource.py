@@ -7,7 +7,7 @@ import pprint
 import xml.etree.ElementTree as ET
 from formencode.doctest_xml_compare import xml_compare
 
-import fhir
+import fhir.model
         
 
 class TestResources(unittest.TestCase):
@@ -31,20 +31,20 @@ class TestResources(unittest.TestCase):
             </Patient>
         """
 
-        p = fhir.Patient()
+        p = fhir.model.Patient()
         p.id = 'http://fhir.zakbroek.com/Patient/1'
         p.active = True
         
-        name = fhir.HumanName()
+        name = fhir.model.HumanName()
         name.use = 'official'
         name.given.append('Melle')
         name.given.append('Sjoerd')
         name.family.append('Sieswerda')
         p.name.append(name)
-        # p.deceased = fhir.boolean(True)
-        p.deceased = fhir.dateTime('2016-12-01T00:00:00Z')
+        # p.deceased = fhir.model.boolean(True)
+        p.deceased = fhir.model.dateTime('2016-12-01T00:00:00Z')
 
-        identifier = fhir.Identifier()
+        identifier = fhir.model.Identifier()
         identifier.value = '123456789'
         p.identifier.append(identifier)
 
