@@ -19,7 +19,7 @@ applications:
       max_size:     1024                   # Specified in kB (i.e. 1024 means a maximum file size of 1MB)
       format:       "%(asctime)s - %(name)-14s - %(levelname)-8s - %(message)s"
     
-    clear_folder: True
+    clear_model_folder: True
     ftype: input/profiles-types.xml
     fresource: input/profiles-resources.xml
     # items: [Element, BackboneElement, Patient]

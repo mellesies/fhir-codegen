@@ -278,7 +278,7 @@ def item_from_structure_definition(name, structure_definitions):
 # def item_from_structure_definition      
   
 
-def run(ftype, fresource, items, clear_folder=False):
+def run(ftype, fresource, items, clear_model_folder=False):
     """Data Model.
         
     :param str ftype: filename for XML describing FHIR types
@@ -293,10 +293,10 @@ def run(ftype, fresource, items, clear_folder=False):
     
     structure_definitions = get_structure_definitions(et_types, et_resources)
     
-    if clear_folder:
+    if clear_model_folder:
         import shutil
         
-        shutil.rmtree(ROOT_FOLDER)
+        shutil.rmtree(os.path.join(ROOT_FOLDER, MODEL_FOLDER))
         os.makedirs(os.path.join(ROOT_FOLDER, MODEL_FOLDER))
                 
     write_basic_types(structure_definitions)
@@ -320,9 +320,9 @@ if __name__ == '__main__':
         ftype = config['ftype']
         fresource = config['fresource']
         items = config['items']
-        clear_folder = config['clear_folder']
+        clear_model_folder = config['clear_model_folder']
         
-        run(ftype, fresource, items, clear_folder)
+        run(ftype, fresource, items, clear_model_folder)
         
             
     
