@@ -20,8 +20,8 @@ class TestResult(unittest.TextTestResult):
     unittest.result.TestResult.startTest(self, test)
       
     if self.showAll:
-      # self.stream.write("%-75s " % self.getDescription(test))
-      self.stream.write("%-75s " % str(test))
+      # self.stream.write("%-85s " % self.getDescription(test))
+      self.stream.write("%-85s " % str(test))
       self.stream.flush()
   
   
@@ -35,7 +35,7 @@ class TestResult(unittest.TextTestResult):
       self.stream.write('E')
       self.stream.flush()
     
-    self.log.error("%-75s %s" % (test, error))
+    self.log.error("%-85s %s" % (test, error))
     self.log.exception(err[1])
   
     
@@ -49,7 +49,7 @@ class TestResult(unittest.TextTestResult):
       self.stream.write('F')
       self.stream.flush()
         
-    self.log.error("%-75s %s" % (test, fail))
+    self.log.error("%-85s %s" % (test, fail))
     # self.log.error(self.separator1)
     # self.log.error("%s: %s" % ('FAIL', self.getDescription(test)))
     # self.log.error(self.separator2)
@@ -71,7 +71,7 @@ class TestResult(unittest.TextTestResult):
       self.stream.write("s")
       self.stream.flush()
     
-    self.log.info("%-75s %s" % (test, skipped))
+    self.log.info("%-85s %s" % (test, skipped))
   
   
   def addSuccess(self, test):
@@ -84,7 +84,7 @@ class TestResult(unittest.TextTestResult):
       self.stream.write('.')
       self.stream.flush()
 
-    self.log.info("%-75s %s" % (test, ok))
+    self.log.info("%-85s %s" % (test, ok))
   
 
 class TestRunner(unittest.TextTestRunner):

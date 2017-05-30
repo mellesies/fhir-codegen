@@ -45,9 +45,43 @@ class Resource(Base):
 
     # Attributes
     id = Column(String(50))
-    resource_type = Column(String(50))
+    type = Column(String(50))
+    xml = Column(Text)
 
 
+class FHIRStore(object):
+    def __init__(self, URI='sqlite:///tmp.db', drop_all=False):
+        engine = create_engine(URI, convert_unicode=True)
+        Session.configure(bind=engine)
+
+        if drop_all:
+            Base.metadata.drop_all(engine)
+
+        Base.metadata.create_all(bind=engine)
+        self.session = Session()
+    
+    def get(self, id):
+        """Retrieve a Resource from the database."""
+        pass
+    
+    def post(self, resource):
+        """Create a Resource in the database."""
+        persisted_resource = Resource(
+            id=str(resource.id),
+            type=resource.__class__.__name__,
+            xml=resource.toXML()
+        )
+
+        self.session.add(persisted_resource)
+        self.session.commit()
+
+    def put(self, resource):
+        """Update a Resource in the database."""
+        pass
+
+    def delete(self, resource):
+        """Delete a Resource from the database."""
+        pass
 # ------------------------------------------------------------------------------
 # Example
 # ------------------------------------------------------------------------------

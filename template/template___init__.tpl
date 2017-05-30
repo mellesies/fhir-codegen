@@ -18,6 +18,12 @@ __all__ = [
     'PropertyDefinition',
     'Property',
     'PropertyList',
+    {% for t in basic_types %}
+    '{{t.classname}}',
+    {% endfor %}
+    {% for t in processed_items if not t == 'Resource' %}
+    '{{t}}',
+    {% endfor %}
 ]
 
 # Module global
@@ -549,12 +555,12 @@ class dateTimeBase(BaseType):
 # class dateTimeBase 
 
 
-# Import basic types into module/package 'fhir'
+# Import basic types into module/package 'fhir.model'
 {% for t in basic_types %}
 from ._{{t.classname.lower()}} import {{t.classname}}
 {% endfor %}
 
-# Import complex types and resources into module/package 'fhir'
+# Import complex types and resources into module/package 'fhir.model'
 # from fhir.resource import Resource
 {% for t in processed_items if not t == 'Resource' %}
 from .{{t.lower()}} import {{t}}
