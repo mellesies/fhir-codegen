@@ -14,6 +14,7 @@ from sqlalchemy.ext.declarative import declarative_base, as_declarative, declare
 Session = scoped_session(sessionmaker(autocommit=False, autoflush=False))
 object_session = Session.object_session
 
+import fhir.model
 
 # ------------------------------------------------------------------------------
 # Base
@@ -44,8 +45,8 @@ class Resource(Base):
     _id = Column(Integer, primary_key=True)
 
     # Attributes
-    id = Column(String(50))
-    type = Column(String(50))
+    id = Column(String(50), index=True, unique=True)
+    type = Column(String(50), index=True)
     xml = Column(Text)
 
 
@@ -58,22 +59,27 @@ class FHIRStore(object):
             Base.metadata.drop_all(engine)
 
         Base.metadata.create_all(bind=engine)
-        self.session = Session()
     
     def get(self, id):
         """Retrieve a Resource from the database."""
-        pass
+        session = Session()
+
+        persisted_resource = session.query(Resource).filter_by(id=str(id)).one()
+        cls = getattr(fhir.model, persisted_resource.type)
+        return cls.marshallXML(persisted_resource.xml)
     
     def post(self, resource):
         """Create a Resource in the database."""
+        session = Session()
+
         persisted_resource = Resource(
             id=str(resource.id),
             type=resource.__class__.__name__,
             xml=resource.toXML()
         )
 
-        self.session.add(persisted_resource)
-        self.session.commit()
+        session.add(persisted_resource)
+        session.commit()
 
     def put(self, resource):
         """Update a Resource in the database."""

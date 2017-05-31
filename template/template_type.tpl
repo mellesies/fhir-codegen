@@ -84,6 +84,7 @@ class {{t.classname}}(BaseType):
         {% endif %}
     {% endif %}
 
+
 {% elif t.primitive in ('bool', ) %}
 class boolean_(int):
     def __repr__(self):
@@ -144,6 +145,9 @@ class boolean(BaseType):
 
     __rxor__ = __xor__
     
+    def toNative(self):
+        """Overrides BaseType.toNative()."""
+        return bool(self.value)
     
     
 

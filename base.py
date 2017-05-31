@@ -68,7 +68,7 @@ COMPLEX_TYPES = [
 VALUE_X = {
 	'valueInteger' : 'integer',
 	'valueDecimal' : 'decimal',
-	'valueDateTime' : 'datetime',
+	'valueDateTime' : 'dateTime',
 	'valueDate' : 'date',
 	'valueInstant' : 'instant',
 	'valueString' : 'string',

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+import sys
 from collections import OrderedDict
 from datetime import datetime
 import dateutil.parser
@@ -10,6 +11,7 @@ import pprint
 
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
+import json
 
 __all__ = [
     'inf',
@@ -29,27 +31,27 @@ __all__ = [
 # Module global
 inf = float('inf')
 
-PRIMITIVE_TYPES = {
-    # 'Element': 'Element',
-    'markdown': 'str',
-    'integer': 'int',
-    'dateTime': 'FHIRdatetime',
-    'unsignedInt': 'int',
-    'code': 'str',
-    'date': 'FHIRdate',
-    'decimal': 'float',
-    'uri': 'str',
-    'id': 'str',
-    'base64Binary': 'str',
-    'time': 'FHIRtime',
-    'oid': 'str',
-    'positiveInt': 'int',
-    'string': 'str',
-    'boolean': 'bool',
-    'uuid': 'str',
-    'instant': 'FHIRdatetime',
-}
-
+PRIMITIVE_TYPES = OrderedDict([
+    # ('Element', 'Element'),
+    ('markdown', 'str'),
+    ('integer', 'int'),
+    ('dateTime', 'dateTimeBase'),
+    ('unsignedInt', 'int'),
+    ('code', 'str'),
+    ('date', 'dateTimeBase'),
+    ('decimal', 'float'),
+    ('uri', 'str'),
+    ('id', 'str'),
+    ('base64Binary', 'str'),
+    ('time', 'dateTimeBase'),
+    ('oid', 'str'),
+    ('positiveInt', 'int'),
+    ('string', 'str'),
+    ('boolean', 'bool'),
+    ('uuid', 'str'),
+    ('instant', 'dateTimeBase'),
+    ('xhtml', 'str'),
+])
 
 # ------------------------------------------------------------------------------
 # Exceptions & Errors
@@ -116,12 +118,11 @@ class PropertyMixin(object):
         if isinstance(value, Element):
             if type(value).__name__ not in types:
                 # FIXME: change to more meaningful exception!
-                raise ValueError
+                raise PropertyTypeError(type(value).__name__, self._definition)
         
             return value
         
         # Ok, so value is not (yet) a fhir type. Try to find a supported type.
-        import sys
         this = sys.modules[__name__]
 
         for type_ in self._definition.type:
@@ -206,7 +207,7 @@ class Property(PropertyMixin):
     
     def __set__(self, instance, value):
         if self._definition.cmax > 1: 
-            raise PropertyCardinalityError('set', self._definition.name)
+            raise PropertyCardinalityError('set', self._definition)
 
         instance._property_values[self._name] = self.coerce_type(value)
 
@@ -247,6 +248,9 @@ class PropertyList(list, PropertyMixin):
             raise PropertyCardinalityError('append', self._definition)
             
         super(PropertyList, self).append(x)
+    
+    def toJSON(self):
+        return []
 # class PropertyList   
 
 
@@ -262,6 +266,7 @@ class FHIRBase(object):
         self._property_values = dict()
         for attr, value in kwargs.items():
             setattr(self, attr, value)
+    # def __init__
     
     def __setattr__(self, attr, value):
         if (attr not in self._allowed_attributes) and (attr not in self._getProperties()):
@@ -298,6 +303,8 @@ class FHIRBase(object):
             property_name = tag.tag
             property_type = ''
 
+            # For tags like 'valueString' the property is called 'value'. These properties
+            # are *not* always simple types!
             if not hasattr(instance.__class__, property_name):
                 for attr in instance._getProperties():
                     if property_name.startswith(attr):
@@ -313,19 +320,20 @@ class FHIRBase(object):
 
             # print('{}{} ({})'.format(spaces, property_name, property_))
 
-            # Determine the data type of the property. Simple types have themselves a 
-            # 'value' property that is rendered as an attribute in the xml tag.
-            simple_type = hasattr(desc.type, 'value') \
-                            and getattr(desc.type, 'value')._definition.repr == 'xmlAttr'
+            # Determine the data type of the property. Simple types all inherit from BaseType.
+            # simple_type = not isinstance(desc.type, list) and issubclass(desc.type, BaseType)
+            simple_type = property_type in PRIMITIVE_TYPES.keys() or issubclass(desc.type, BaseType)
 
-            if simple_type or property_type != '':
+            if property_type:
+                this = sys.modules[__name__]
+                constructor = getattr(this, property_type)
+
+                if simple_type:
+                    value = constructor(tag.get('value'))
+                else:
+                    value = constructor()
+            elif simple_type:
                 value = tag.get('value')
-
-                if property_type:
-                    import sys
-                    this = sys.modules[__name__]
-                    constructor = getattr(this, property_type)
-                    value = constructor(value)
             else:
                 # Create a new complex type instance via its constructor
                 value = desc.type()
@@ -364,8 +372,10 @@ class FHIRBase(object):
             format_ = format_.upper()
             func = getattr(self, 'to' + format_)
             return func()
-    
-    def toJSON(self, parent=None, path=None):
+    # def serialize
+
+
+    def toDict(self, level=0):
         """
         {
           "resourceType": "Resource",
@@ -373,15 +383,70 @@ class FHIRBase(object):
           "text": "...",
         }
         """
-        if parent is None:            
-            # This will (should) only happen if I'm a Resource. Resources should
-            # create the root element and iterate over their attribues.
-            tag = self.__class__.__name__
-            parent = dict()
-        
-        # Only the root element needs to generate the actual JSON.
-        if len(path) == 1:
-            return json.dumps(parent, indent=4)
+        retval = dict()
+        spaces = ' ' * 2 * level
+
+        if isinstance(self, Resource):            
+            retval['resourceType'] = self.__class__.__name__
+
+        # Iterate over *my* attributes.
+        for attr in self._getProperties():
+            property_def = getattr(type(self), attr)._definition
+            value = getattr(self, attr)
+
+            # Right .. a value. Let's see
+            if isinstance(value, BaseType):
+                if isinstance(property_def.type, list):
+                    # FIXME: move to separate function/method
+                    class_name = value.__class__.__name__
+                    class_name = class_name[0].upper() + class_name[1:]
+                    attr = attr + class_name 
+
+                v = value.toNative()
+                print('{}{}: BaseType, v: {}, type(v): {}'.format(spaces, attr, v, type(v)))
+                retval[attr] = v
+
+                json_dict = value.toDict(level)
+                if json_dict:
+                    retval['_' + attr] = json_dict
+                
+            elif isinstance(value, PropertyList):
+                print('{}{}: PropertyList'.format(spaces, attr))
+                listvalues = list()
+                _listvalues = list()
+
+                for v in value:
+                    if isinstance(v, BaseType):
+                        listvalues.append(v.toNative())
+                        _v = v.toDict()
+                        if not _v:
+                            _v = None
+                        _listvalues.append(_v)
+                    else:
+                        print('{}value: {}, type: {}'.format(spaces, v, type(v)))
+                        listvalues.append( v.toDict(level+1) )
+                
+                if listvalues:
+                    retval[attr] = listvalues
+
+                if sum(map(lambda x: x is not None, _listvalues)) > 0:
+                    retval['_' + attr] = _listvalues
+
+            elif isinstance(value, Element):
+                print('{}: Element'.format(attr))
+                json_dict = value.toDict(level+1)
+
+                if json_dict:
+                    retval[attr] = json_dict
+            elif value is not None:
+                # print('attr: {}, value: {}, type: {}'.format(attr, value, type(value)))
+                # return value
+                pass
+            
+        return retval
+    
+    def toJSON(self):
+        return json.dumps(self.toDict(), indent=4)
     
     def toXML(self, parent=None, path=None):
         """
@@ -397,9 +462,11 @@ class FHIRBase(object):
             # This will (should) only happen if I'm a Resource. Resources should
             # create the root element and iterate over their attribues.
             tag = self.__class__.__name__
+            path = [tag, ]
             parent = ET.Element(tag)
-            parent.set('xmlns', 'http://hl7.org/fhir')
-            path = [tag, ]        
+
+            if not isinstance(self, Element):
+                parent.set('xmlns', 'http://hl7.org/fhir')
         
         # Iterate over *my* attributes.
         for attr in self._getProperties():
@@ -430,7 +497,12 @@ class FHIRBase(object):
         # Only the root element needs to generate the actual XML.
         if len(path) == 1:
             x = xml.dom.minidom.parseString(ET.tostring(parent)) 
-            return x.toprettyxml(indent='  ')
+            pretty_xml = x.toprettyxml(indent='  ')
+
+            if isinstance(self, Element):
+                pretty_xml = pretty_xml.replace('<?xml version="1.0" ?>\n', '')
+                
+            return pretty_xml
 # class FHIRBase 
             
 class Element(FHIRBase):
@@ -448,20 +520,6 @@ class Element(FHIRBase):
             self.value = value
 # class Element
 
-# class ExtensionType(type):
-#     def __getattr__(cls, attr):
-#         print('*' * 80)
-#         print('__getattr__')
-#         print('Someone is asking for {}!'.format(attr))
-#         print('*' * 80)
-
-#         if attr.startswith('value'):
-#             return getattr(self, 'value')
-
-#         raise AttributeError
-# class ExtensionType
-
-# class Extension(Element, metaclass=ExtensionType):
 class Extension(Element):
     """Optional Extensions Element - found in all resources."""
     _url = 'http://hl7.org/fhir/StructureDefinition/Extension'
@@ -487,6 +545,10 @@ class BaseType(Element):
     def __repr__(self):
         """repr(x) <==> x.__repr__()"""
         return repr(self.value)
+
+    def toNative(self):
+        type_ = type(self.value)
+        return type_(self.value)
 # class BaseType
 
 # ------------------------------------------------------------------------------
@@ -562,6 +624,7 @@ from ._{{t.classname.lower()}} import {{t.classname}}
 
 # Import complex types and resources into module/package 'fhir.model'
 # from fhir.resource import Resource
+from .resource import Resource
 {% for t in processed_items if not t == 'Resource' %}
 from .{{t.lower()}} import {{t}}
 {% endfor %}

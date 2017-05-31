@@ -21,3 +21,19 @@ class TestComplexTypes(unittest.TestCase):
 
         # print(name.toXML())
         
+    def test_extension(self):
+        xmlstring = """
+        <Extension url="http://example.com/ExtensionThingy">
+            <valueString value="Hurray for me"/>
+        </Extension>
+        """
+
+        ext = fhir.model.Extension()
+        ext.url = 'http://example.com/ExtensionThingy'
+        ext.value = fhir.model.string('Hurray for me')
+
+        x1 = ET.fromstring(xmlstring)
+        x2 = ET.fromstring(ext.toXML())
+        self.assertTrue(xml_compare(x1, x2))
+
+        

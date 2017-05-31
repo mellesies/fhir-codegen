@@ -11,24 +11,32 @@ from fhir.model import *
 
 class TestPersistance(unittest.TestCase):
     
-    def test_post(self):
-        store = FHIRStore(drop_all=True)
-        
-        p = Patient()
-        p.id = 'http://fhir.zakbroek.com/Patient/1'
-        p.active = True
-        
+    def setUp(self):
+        self.store = FHIRStore(drop_all=True)
+
+        self.p = Patient()
+        self.p.id = 'http://fhir.zakbroek.com/Patient/1'
+        self.p.active = True
+
         name = fhir.model.HumanName()
         name.use = 'official'
         name.given.append('Melle')
         name.given.append('Sjoerd')
         name.family.append('Sieswerda')
-        p.name.append(name)
-        # p.deceased = fhir.model.boolean(True)
-        p.deceased = fhir.model.dateTime('2016-12-01T00:00:00Z')
+        self.p.name.append(name)
+
+        self.p.deceased = fhir.model.dateTime('2016-12-01T00:00:00Z')
 
         identifier = fhir.model.Identifier()
         identifier.value = '123456789'
-        p.identifier.append(identifier)
+        self.p.identifier.append(identifier)
 
-        store.post(p)
+    def test_get(self):
+        self.store.post(self.p)
+        p = self.store.get(self.p.id)
+
+        self.assertEquals(p.id, self.p.id)
+
+    def test_post(self):
+
+        self.store.post(self.p)

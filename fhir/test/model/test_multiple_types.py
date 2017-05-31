@@ -58,7 +58,7 @@ class TestMultiple(unittest.TestCase):
     def test_assignmentError(self):
         m = Multiple()
         
-        with self.assertRaises(ValueError):
+        with self.assertRaises(fhir.model.PropertyTypeError):
             m.multi = fhir.model.string('hello sweetie!')
 
     def test_directAssignment(self):

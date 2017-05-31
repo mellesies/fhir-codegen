@@ -2,3 +2,4 @@
 fhir/model
 .vscode
 logs
+tmp.db
