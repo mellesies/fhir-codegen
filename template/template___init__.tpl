@@ -53,6 +53,9 @@ PRIMITIVE_TYPES = OrderedDict([
     ('xhtml', 'str'),
 ])
 
+def camel_case(attr):
+    return attr[0].upper() + attr[1:]
+
 # ------------------------------------------------------------------------------
 # Exceptions & Errors
 # ------------------------------------------------------------------------------
@@ -147,6 +150,12 @@ class PropertyMixin(object):
         if value is None:
             return None
         
+        # PropertyDefinition.type might defined as string --> lazily evaluate.
+        # FIXME: this will fail for references!
+        if isinstance(type_, str):
+            this = sys.modules[__name__]
+            type_ = getattr(this, type_)
+
         # Check for multi typed properties first. isinstance will complain if
         # it recieves a list of strings as 2nd argument.
         if isinstance(type_, list):
@@ -157,16 +166,8 @@ class PropertyMixin(object):
             return value
 
         # If we're still here, try to coerce/cast. First find the constructor.
-        if isinstance(type_, str):
-            # PropertyDefinition.type is defined as string --> lazily evaluate.
-            this = sys.modules[__name__]
-            constructor = getattr(this, type_)
-        else:
-            # PropertyDefinition.type is already set to a constructor
-            constructor = type_
-        
         try:
-            return constructor(value)
+            return type_(value)
         except Exception as e:
             # print('!' * 80)
             # print(e)
@@ -207,9 +208,19 @@ class Property(PropertyMixin):
     
     def __set__(self, instance, value):
         if self._definition.cmax > 1: 
-            raise PropertyCardinalityError('set', self._definition)
+            if isinstance(value, list):
+                instance._property_values.setdefault(self._name, PropertyList(self._definition))
 
-        instance._property_values[self._name] = self.coerce_type(value)
+                del instance._property_values[self._name][:]
+
+                for item in value:
+                    instance._property_values[self._name].append(item)
+            
+            else:
+                raise PropertyCardinalityError('set', self._definition)
+
+        else:
+            instance._property_values[self._name] = self.coerce_type(value)
 
     
     def __repr__(self):
@@ -295,7 +306,7 @@ class FHIRBase(object):
     def marshallXML(cls, xmlstring):
         """Marshall a Resource from its XML representation."""
 
-        def marshalRec(tag, instance, level=1):
+        def marshallRec(tag, instance, level=1):
             spaces = '  ' * level
 
             # The tag provides the attribute's name. Get the property(definition)
@@ -318,12 +329,15 @@ class FHIRBase(object):
             property_ = getattr(instance.__class__, property_name)
             desc = property_._definition
 
-            # print('{}{} ({})'.format(spaces, property_name, property_))
+            if isinstance(desc.type, str):
+                desc.type = getattr(sys.modules[__name__], desc.type)
 
             # Determine the data type of the property. Simple types all inherit from BaseType.
-            # simple_type = not isinstance(desc.type, list) and issubclass(desc.type, BaseType)
             simple_type = property_type in PRIMITIVE_TYPES.keys() or issubclass(desc.type, BaseType)
 
+            # print('{}{} ({})'.format(spaces, property_name, property_))
+            # print('{}- property_type: "{}", simple_type: {}, desc.cmax: {}'.format(spaces, property_type, simple_type, desc.cmax))
+            # if property_type is set, we're dealing with a value[x] type.
             if property_type:
                 this = sys.modules[__name__]
                 constructor = getattr(this, property_type)
@@ -336,22 +350,24 @@ class FHIRBase(object):
                 value = tag.get('value')
             else:
                 # Create a new complex type instance via its constructor
-                value = desc.type()
+                value = desc.type(**tag.attrib)
 
             if desc.cmax == 1:
                 setattr(instance, property_name, value)
             elif desc.cmax > 1:
                 getattr(instance, property_name).append(value)
 
-            # Iterate over the tag's children: even simple types can have extensions!
-            if not simple_type:
-                instance = value
+            # Simple types will have been coerced to a BaseType by the assignment above.
+            if simple_type:
+                value = getattr(instance, property_name)
 
+            # Iterate over the tag's children: even simple types can have extensions!
             for child_tag in tag:
-                marshalRec(child_tag, instance, level+1)
+                marshallRec(child_tag, value, level+1)
         # def marshalRec
 
         self = cls()
+        # print('')
 
         # Remove the default namespace definition (xmlns="http://some/namespace")
         xmlstring = re.sub('\\sxmlns="[^"]+"', '', xmlstring, count=1)
@@ -362,7 +378,7 @@ class FHIRBase(object):
         # print('')
         # print(cls.__name__)
         for tag in root:
-            marshalRec(tag, self)
+            marshallRec(tag, self)
 
         return self
     # def marshallXML
@@ -373,7 +389,6 @@ class FHIRBase(object):
             func = getattr(self, 'to' + format_)
             return func()
     # def serialize
-
 
     def toDict(self, level=0):
         """
@@ -397,13 +412,11 @@ class FHIRBase(object):
             # Right .. a value. Let's see
             if isinstance(value, BaseType):
                 if isinstance(property_def.type, list):
-                    # FIXME: move to separate function/method
-                    class_name = value.__class__.__name__
-                    class_name = class_name[0].upper() + class_name[1:]
+                    class_name = camel_case(value.__class__.__name__)
                     attr = attr + class_name 
 
                 v = value.toNative()
-                print('{}{}: BaseType, v: {}, type(v): {}'.format(spaces, attr, v, type(v)))
+                # print('{}{}: BaseType, v: {}, type(v): {}'.format(spaces, attr, v, type(v)))
                 retval[attr] = v
 
                 json_dict = value.toDict(level)
@@ -411,7 +424,7 @@ class FHIRBase(object):
                     retval['_' + attr] = json_dict
                 
             elif isinstance(value, PropertyList):
-                print('{}{}: PropertyList'.format(spaces, attr))
+                # print('{}{}: PropertyList'.format(spaces, attr))
                 listvalues = list()
                 _listvalues = list()
 
@@ -423,7 +436,7 @@ class FHIRBase(object):
                             _v = None
                         _listvalues.append(_v)
                     else:
-                        print('{}value: {}, type: {}'.format(spaces, v, type(v)))
+                        # print('{}value: {}, type: {}'.format(spaces, v, type(v)))
                         listvalues.append( v.toDict(level+1) )
                 
                 if listvalues:
@@ -433,7 +446,8 @@ class FHIRBase(object):
                     retval['_' + attr] = _listvalues
 
             elif isinstance(value, Element):
-                print('{}: Element'.format(attr))
+                # raise Exception('just to see if this ever ever happens!')
+                # print('{}: Element'.format(attr))
                 json_dict = value.toDict(level+1)
 
                 if json_dict:
@@ -444,9 +458,11 @@ class FHIRBase(object):
                 pass
             
         return retval
+    # def toDict
     
     def toJSON(self):
         return json.dumps(self.toDict(), indent=4)
+    # def toJSON
     
     def toXML(self, parent=None, path=None):
         """
@@ -484,8 +500,7 @@ class FHIRBase(object):
                         
                 elif isinstance(value, FHIRBase):
                     if isinstance(desc.type, list):
-                        class_name = value.__class__.__name__
-                        class_name = class_name[0].upper() + class_name[1:]
+                        class_name = camel_case(value.__class__.__name__)
                         attr = attr + class_name 
                     value.toXML(ET.SubElement(parent, attr), path + [attr, ])
                 
@@ -503,6 +518,7 @@ class FHIRBase(object):
                 pretty_xml = pretty_xml.replace('<?xml version="1.0" ?>\n', '')
                 
             return pretty_xml
+    # def toXML
 # class FHIRBase 
             
 class Element(FHIRBase):
@@ -625,7 +641,7 @@ from ._{{t.classname.lower()}} import {{t.classname}}
 # Import complex types and resources into module/package 'fhir.model'
 # from fhir.resource import Resource
 from .resource import Resource
-{% for t in processed_items if not t == 'Resource' %}
+{% for t in processed_items if not t in ['FHIRBase', 'Element', 'Extension','Resource'] %}
 from .{{t.lower()}} import {{t}}
 {% endfor %}
 

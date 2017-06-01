@@ -23,7 +23,7 @@ applications:
     ftype: input/profiles-types.xml
     fresource: input/profiles-resources.xml
     # items: [Element, BackboneElement, Patient]
-    items: [Patient]
+    items: [Patient, Observation, Composition]
 
 environments:
   prod:

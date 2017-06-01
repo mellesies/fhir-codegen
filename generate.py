@@ -64,8 +64,7 @@ def write_package_init():
     filename = os.path.join(ROOT_FOLDER, '__init__.py')
     t = Template(tpl, lstrip_blocks=True, trim_blocks=True)
     t.stream().dump('{}'.format(filename))
-    
-
+# def write_package_init
 
 def write_model_init(processed_items=None):
     if processed_items is None:
@@ -117,7 +116,7 @@ def write_basic_types(structure_definitions):
         else:
             regex = None
         
-        log.debug('Writing/generating "{}"' .format(type_))
+        log.debug('1) Writing/generating "{}"' .format(type_))
         parameters = {
             'classname': type_,
             'superclass': 'Element',
@@ -139,12 +138,13 @@ def write_items(structure_definitions, items, processed=None):
         tpl = fp.read()
 
     t =  Template(tpl, lstrip_blocks=True, trim_blocks=True)
+    folder = os.path.join(ROOT_FOLDER, MODEL_FOLDER)
     
     for name in items:
         if name in ['FHIRBase', 'Element', 'Extension']:
             continue
         
-        log.debug('Writing/generating "{}"'.format(name))
+        log.debug('2) Writing/generating "{}"'.format(name))
         resource, classes, dependencies = item_from_structure_definition(name, structure_definitions)
         
         kwargs = {
@@ -152,15 +152,15 @@ def write_items(structure_definitions, items, processed=None):
             'classes': classes,
         }
         
-        folder = os.path.join(ROOT_FOLDER, MODEL_FOLDER)
         t.stream(**kwargs).dump('{}/{}.py'.format(folder, name.lower()))
         
         unprocessed_dependecies  = [dep for dep in dependencies if dep not in processed]
-        processed = processed + unprocessed_dependecies
+        processed.extend(unprocessed_dependecies)
         write_items(structure_definitions, unprocessed_dependecies, processed)
     
     processed = processed + items
     processed.sort()
+
     return processed
 # def write_items
 
@@ -220,6 +220,9 @@ def item_from_structure_definition(name, structure_definitions):
             # Get the parent and the attribute
             parent = root
             attr = path[-1].replace('[x]', '')
+
+            if attr in ['def', 'class']:
+                attr = attr + '_'
             
             if len(path) > 1:
                 for component in path[:-1]:
@@ -236,14 +239,25 @@ def item_from_structure_definition(name, structure_definitions):
                 
                 if t == 'Reference':
                     url = getValue(type_, 'profile')
-                    t = 'Reference(reference=\'{}\')'.format(url)
+                    t = 'Reference(reference="{}")'.format(url)
                     
                 types_.append(t)
             
-            if len(types_) > 1:
-                type_ = types_
-            else:
-                type_ = types_[0]
+            try:
+                if len(types_) > 1:
+                    type_ = types_
+                else:
+                    type_ = types_[0]
+            except:
+                type_ = e.find('nameReference').get('value')
+                type_ = type_[0].upper() + type_[1:]
+                # print('e.tag: {}'.format(e.tag))
+                # print('path.value: {}'.format(e.find('path').get('value')))
+                # print('path: {}'.format(path))
+                # print('name:   {}'.format(attr))
+                # print('types_: {}'.format(types_))
+                # print('type_: {}'.format(type_))
+                # raise
 
             properties = OrderedDict([
                 ('name', attr),
@@ -257,13 +271,13 @@ def item_from_structure_definition(name, structure_definitions):
                 # This dict is stored (referenced) in two places!
                 attrs = OrderedDict()
                 ic = OrderedDict([
-                    ('name', attr.title()),
+                    ('name', attr[0].upper() + attr[1:]),
                     ('superclass', type_),
                     ('attributes', attrs),
                 ])
 
                 implicit_classes[attr] = ic
-                properties['type'] = attr.title()
+                properties['type'] = attr[0].upper() + attr[1:]
                 properties['attributes'] = attrs
                 
             try:
