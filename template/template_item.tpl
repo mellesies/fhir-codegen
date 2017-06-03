@@ -21,6 +21,11 @@ from ._{{t|lower}} import {{t}}
 from .{{t|lower}} import {{t}}
 {% endfor %}
 
+__author__ = "Melle Sieswerda"
+__copyright__  = "Copyright 2017, Melle Sieswerda"
+__license__ = "GPL"
+__version__ = "0.8"
+
 __all__ = ['{{r.name}}']
 
 

@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""FHIR Resources & Elements in Python.
+
+"""
 from __future__ import print_function
 import sys
 from collections import OrderedDict
@@ -12,6 +15,11 @@ import pprint
 import xml.etree.ElementTree as ET
 import xml.dom.minidom
 import json
+
+__author__ = "Melle Sieswerda"
+__copyright__  = "Copyright 2017, Melle Sieswerda"
+__license__ = "GPL"
+__version__ = "0.8"
 
 __all__ = [
     'inf',
@@ -81,7 +89,7 @@ class InvalidAttributeError(Exception):
 # Property classes to declaratively define FHIR model.
 # ------------------------------------------------------------------------------
 class PropertyDefinition(object):
-    
+    """Used by Property to hold the definition of an attribute of a Resource or Element."""
     def __init__(self, name, type_, cmin, cmax, repr_='element'):
         assert name.find(' ') < 0, "'name' should not contain spaces."
         
@@ -109,18 +117,23 @@ class PropertyDefinition(object):
 # class PropertyDefinition
 
 class PropertyMixin(object):
+    """
+        Provides methods to coerce (~cast) native types (str, int) to FHIR types 
+        (string, decimal). Used by Property and PropertyList.
+    """
     def coerce_multi_type(self, value, types):
         """
+            Coerce 'value' to a type in 'types'.
+
             For properties that support more than one type, first check if the
-            provided value actually is of one of these types. If not, we'll try
-            to cast to a supported value by simply trying each supported type.
+            provided value actually is of one of these types. If not, try to cast
+            to a supported value by simply trying each supported type.
             
             Example of a property that supports more than one type:
                 multi = Property(PropertyDefinition('multi', ['boolean', 'dateTime'], '0', '1'))
         """
         if isinstance(value, Element):
             if type(value).__name__ not in types:
-                # FIXME: change to more meaningful exception!
                 raise PropertyTypeError(type(value).__name__, self._definition)
         
             return value
@@ -139,11 +152,12 @@ class PropertyMixin(object):
             else:
                 return value
         
+        # FIXME: change to more meaningful exception!
         raise Exception("Could not find a proper type for value '{}' in {}".format(value, self._definition.type))
     # def coerce_multi_type
     
     def coerce_type(self, value):
-        """Coerce/cast value to correspond to PropertyDefinition."""
+        """Coerce (~cast) value to correspond to PropertyDefinition."""
         logger = logging.getLogger('PropertyMixin')
         type_ = self._definition.type
         
@@ -175,6 +189,12 @@ class PropertyMixin(object):
 # class PropertyMixin
         
 class Property(PropertyMixin):
+    """Property of a Resource or Element.
+
+        This class defines logic to ensure that Resource/Element (and 
+        subclasses) behave much like regular Python objects, while providing
+        functionality specific to the FHIR standard.
+    """
     _cls_counter = 0
     
     @classmethod
@@ -228,7 +248,7 @@ class Property(PropertyMixin):
 # class Property
 
 class PropertyList(list, PropertyMixin):
-    """PropertyLists are used by Propertys when cardinality > 1."""
+    """PropertyList is used by Property when cardinality > 1."""
     
     def __init__(self, definition, *args, **kwargs):
         """Create a new PropertyList instance.
@@ -258,9 +278,6 @@ class PropertyList(list, PropertyMixin):
             raise PropertyCardinalityError('append', self._definition)
             
         super(PropertyList, self).append(x)
-    
-    def toJSON(self):
-        return []
 # class PropertyList   
 
 
@@ -279,6 +296,11 @@ class FHIRBase(object):
     # def __init__
     
     def __setattr__(self, attr, value):
+        """x.attr = value <==> setattr(x, attr, value)
+
+            Additionally, raises an InvalidAttributeError when trying to assign a 
+            value to an attribute that is not part of the Resource/Element definition.
+        """
         if (attr not in self._allowed_attributes) and (attr not in self._getProperties()):
             raise InvalidAttributeError(type(self).__name__, attr)
 
@@ -405,7 +427,6 @@ class FHIRBase(object):
 
                 attr_name = attr_name.replace('_', '')
                 attr_cls = getattr(cls, attr_name)._definition.type
-
                 if isinstance(attr_cls, str):
                     attr_cls = getattr(sys.modules[__name__], attr_cls)
 
@@ -418,24 +439,19 @@ class FHIRBase(object):
                     continue
                 
                 attr_cls = getattr(cls, attr_name)._definition.type
-
                 if isinstance(attr_cls, str):
                     attr_cls = getattr(sys.modules[__name__], attr_cls)
                 
-
                 attr = getattr(instance, attr_name)
 
                 if isinstance(attr, Element):
                     # Existing attribute (already set through underscore definition)
                     # Need to *update* the existing thing instead of replacing it.
-                    # print('{}Found existing attribute: {}'.format(spaces, attr_name))
                     attr.value = attr_value
 
                 else:
-                    # instance.attr_name = attr_cls.fromPythonObject(attr_value)
                     setattr(instance, attr_name, attr_cls.fromPythonObject(attr_value, level+1))
 
-            
             return instance
 
         if isinstance(python_object, list):
@@ -461,15 +477,8 @@ class FHIRBase(object):
     # def serialize
 
     def toDict(self, level=0):
-        """
-        {
-          "resourceType": "Resource",
-          "id": "...",
-          "text": "...",
-        }
-        """
+        """Return a dictionary representation of this object."""
         retval = dict()
-        spaces = ' ' * 2 * level
 
         if isinstance(self, Resource):            
             retval['resourceType'] = self.__class__.__name__
@@ -479,14 +488,12 @@ class FHIRBase(object):
             property_def = getattr(type(self), attr)._definition
             value = getattr(self, attr)
 
-            # Right .. a value. Let's see
             if isinstance(value, BaseType):
                 if isinstance(property_def.type, list):
                     class_name = camel_case(value.__class__.__name__)
                     attr = attr + class_name 
 
                 v = value.toNative()
-                # print('{}{}: BaseType, v: {}, type(v): {}'.format(spaces, attr, v, type(v)))
                 if value != None:
                     retval[attr] = v
 
@@ -495,7 +502,6 @@ class FHIRBase(object):
                     retval['_' + attr] = json_dict
                 
             elif isinstance(value, PropertyList):
-                # print('{}{}: PropertyList'.format(spaces, attr))
                 listvalues = list()
                 _listvalues = list()
 
@@ -507,7 +513,6 @@ class FHIRBase(object):
                             _v = None
                         _listvalues.append(_v)
                     else:
-                        # print('{}value: {}, type: {}'.format(spaces, v, type(v)))
                         listvalues.append( v.toDict(level+1) )
                 
                 if listvalues:
@@ -518,37 +523,24 @@ class FHIRBase(object):
                     retval['_' + attr] = _listvalues
 
             elif isinstance(value, Element):
-                # raise Exception('just to see if this ever ever happens!')
-                # print('{}: Element'.format(attr))
                 json_dict = value.toDict(level+1)
 
                 if json_dict:
                     retval[attr] = json_dict
-            elif value is not None:
-                # print('attr: {}, value: {}, type: {}'.format(attr, value, type(value)))
-                # return value
-                pass
             
         return retval
     # def toDict
     
     def toJSON(self):
+        """Return a JSON representation of this object."""
         return json.dumps(self.toDict(), indent=4)
     # def toJSON
     
     def toXML(self, parent=None, path=None):
-        """
-        <parent value='value'>
-          <id value='value'/>
-          <extension url='url'>
-            <stringValue value='value'/>
-          </extension>
-          <multiDateTime value="2080-01-01T00:00:00Z"/>
-        </parent>
-        """
+        """Return an XML representation of this object."""
         if parent is None:            
             # This will (should) only happen if I'm a Resource. Resources should
-            # create the root element and iterate over their attribues.
+            # create the root element and iterate over their attributes.
             tag = self.__class__.__name__
             path = [tag, ]
             parent = ET.Element(tag)
@@ -579,7 +571,6 @@ class FHIRBase(object):
                 else:
                     print(value, type(value))
                     raise Exception('unknown property type!?')
-        
         
         # Only the root element needs to generate the actual XML.
         if len(path) == 1:
