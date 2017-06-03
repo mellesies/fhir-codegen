@@ -13,16 +13,26 @@ class {{t.classname}}(BaseType):
     
     value = Property(PropertyDefinition('value', {{t.primitive}}, '1', '1', 'xmlAttr'))
     
-    def __init__(self, value):
+    def __init__(self, value=None):
         """Initialize a new {{t.classname}} instance."""
-        super({{t.classname}}, self).__init__({{t.primitive}}(value))
+        if value is not None:
+            value = {{t.primitive}}(value)
+
+        super({{t.classname}}, self).__init__(value)
     
     def __{{t.primitive}}__(self):
-        return self.value
+        return {{t.primitive}}(self.value)
 
     {% for m, p in methods.items() %}
     {% if t.primitive in p %}
     def __{{m}}__(self, other):
+        {% if m == 'eq' %}
+        if self.value is None or other is None:
+            return self.value is None and other is None
+        {% elif m == 'ne' %}
+        if self.value is None or other is None:
+            return not (self.value is None and other is None)
+        {% endif %}
         if isinstance(other, {{t.classname}}):
             return self.value.__{{m}}__(other.value)
         elif isinstance(other, {{t.primitive}}):
@@ -117,8 +127,9 @@ class boolean(BaseType):
     __str__ = __repr__
 
     def __eq__(self, other):
-        # if self.value is None:
-        #     return other is None
+        if self.value is None or other is None:
+            return self.value is None and other is None
+
         return bool(int(self.value) == int(other))
 
     def __and__(self, other):

@@ -147,34 +147,30 @@ class PropertyMixin(object):
         logger = logging.getLogger('PropertyMixin')
         type_ = self._definition.type
         
-        if value is None:
+        if value is None and not issubclass(type_, Element):
             return None
-        
+
         # PropertyDefinition.type might defined as string --> lazily evaluate.
         # FIXME: this will fail for references!
         if isinstance(type_, str):
-            this = sys.modules[__name__]
-            type_ = getattr(this, type_)
+            type_ = getattr(sys.modules[__name__], type_)
 
         # Check for multi typed properties first. isinstance will complain if
-        # it recieves a list of strings as 2nd argument.
+        # it receives a list of strings as 2nd argument.
         if isinstance(type_, list):
             return self.coerce_multi_type(value, type_)
         
         # If value already has the correct type, we don't need to do anything.
         if isinstance(value, Element) and isinstance(value, type_):
+            # print('just returning value')
             return value
 
-        # If we're still here, try to coerce/cast. First find the constructor.
+        # If we're still here, try to coerce/cast.
+        # This has a side effect: any current value will be replaced by a new instance!
         try:
+            # print('casting value {} to {}'.format(value, type_))
             return type_(value)
         except Exception as e:
-            # print('!' * 80)
-            # print(e)
-            # print(constructor)
-            # print(value)
-            # print(self._definition)
-            # print('!' * 80)
             raise PropertyTypeError(value.__class__.__name__, self._definition)
 # class PropertyMixin
         
@@ -209,10 +205,13 @@ class Property(PropertyMixin):
     def __set__(self, instance, value):
         if self._definition.cmax > 1: 
             if isinstance(value, list):
+                # Create the list if necessary
                 instance._property_values.setdefault(self._name, PropertyList(self._definition))
 
+                # Clear the list
                 del instance._property_values[self._name][:]
 
+                # Populate the list with the new values
                 for item in value:
                     instance._property_values[self._name].append(item)
             
@@ -367,7 +366,6 @@ class FHIRBase(object):
         # def marshalRec
 
         self = cls()
-        # print('')
 
         # Remove the default namespace definition (xmlns="http://some/namespace")
         xmlstring = re.sub('\\sxmlns="[^"]+"', '', xmlstring, count=1)
@@ -382,6 +380,78 @@ class FHIRBase(object):
 
         return self
     # def marshallXML
+
+    @classmethod
+    def fromPythonObject(cls, python_object, level=1, type_=None):
+        """python_object can be a dict, list, str, int, float, bool."""
+        try:
+            resourceType = python_object.pop('resourceType')
+
+            if resourceType != cls.__name__:
+                print('*** WARNING: trying to marshall a {} in a {} ***'.format(resourceType, cls.__name__))
+        except:
+            pass
+
+        spaces = ' ' * level
+
+        if isinstance(python_object, dict):
+            # dict --> resource or complex type
+            instance = cls()
+
+            # First process any entries prefixed with an underscore ('_')
+            for attr_name, attr_value in python_object.items():
+                if not attr_name.startswith('_'):
+                    continue
+
+                attr_name = attr_name.replace('_', '')
+                attr_cls = getattr(cls, attr_name)._definition.type
+
+                if isinstance(attr_cls, str):
+                    attr_cls = getattr(sys.modules[__name__], attr_cls)
+
+                # instance.attr_name = attr_cls.fromPythonObject(attr_value)
+                setattr(instance, attr_name, attr_cls.fromPythonObject(attr_value, level+1))
+
+            # Next, process all regular entries.
+            for attr_name, attr_value in python_object.items():
+                if attr_name.startswith('_'):
+                    continue
+                
+                attr_cls = getattr(cls, attr_name)._definition.type
+
+                if isinstance(attr_cls, str):
+                    attr_cls = getattr(sys.modules[__name__], attr_cls)
+                
+
+                attr = getattr(instance, attr_name)
+
+                if isinstance(attr, Element):
+                    # Existing attribute (already set through underscore definition)
+                    # Need to *update* the existing thing instead of replacing it.
+                    # print('{}Found existing attribute: {}'.format(spaces, attr_name))
+                    attr.value = attr_value
+
+                else:
+                    # instance.attr_name = attr_cls.fromPythonObject(attr_value)
+                    setattr(instance, attr_name, attr_cls.fromPythonObject(attr_value, level+1))
+
+            
+            return instance
+
+        if isinstance(python_object, list):
+            # list --> PropertyList
+            return [cls.fromPythonObject(i) for i in python_object]
+
+        # simple value!
+        return python_object
+    # def fromPythonObject
+
+    @classmethod
+    def marshallJSON(cls, jsonstring):
+        """Marshall a Resource from its JSON representation."""
+        jsondict = json.loads(jsonstring)
+        return cls.fromPythonObject(jsondict)
+    # def marshallJSON
 
     def serialize(self, format_='xml'):
         if format_ in ['xml', 'json']:
@@ -417,7 +487,8 @@ class FHIRBase(object):
 
                 v = value.toNative()
                 # print('{}{}: BaseType, v: {}, type(v): {}'.format(spaces, attr, v, type(v)))
-                retval[attr] = v
+                if value != None:
+                    retval[attr] = v
 
                 json_dict = value.toDict(level)
                 if json_dict:
@@ -442,7 +513,8 @@ class FHIRBase(object):
                 if listvalues:
                     retval[attr] = listvalues
 
-                if sum(map(lambda x: x is not None, _listvalues)) > 0:
+                # Note that '!=' is used here on purpose!
+                if sum(map(lambda x: x != None, _listvalues)) > 0:
                     retval['_' + attr] = _listvalues
 
             elif isinstance(value, Element):
@@ -529,11 +601,6 @@ class Element(FHIRBase):
     id = Property(PropertyDefinition('id', 'id', '0', '1'))
     extension = Property(PropertyDefinition('extension', 'Extension', '0', '*'))
 
-    def __init__(self, value=None, **kwargs):
-        super().__init__(**kwargs)
-
-        if value is not None:
-            self.value = value
 # class Element
 
 class Extension(Element):
@@ -557,12 +624,19 @@ class Extension(Element):
 
 class BaseType(Element):
     """Base for basic/simple types."""
+
+    def __init__(self, value=None, **kwargs):
+        super().__init__(**kwargs)
+        self.value = value
     
     def __repr__(self):
         """repr(x) <==> x.__repr__()"""
         return repr(self.value)
 
     def toNative(self):
+        if self.value is None:
+            return None
+        
         type_ = type(self.value)
         return type_(self.value)
 # class BaseType
