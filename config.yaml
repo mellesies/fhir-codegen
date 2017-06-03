@@ -22,16 +22,7 @@ applications:
     clear_model_folder: True
     ftype: input-dstu2/profiles-types.xml
     fresource: input-dstu2/profiles-resources.xml
+    output_folder: '../py-fhir/fhir'
     # items: [Element, BackboneElement, Patient]
     items: [Patient, Observation, Composition]
 
-environments:
-  prod:
-    description: Production
-    type: production
-    uri: mysql://alchemist:PfJWG8RZDQ9d7enx@localhost/alchemist
-  
-  test:
-    description: Test
-    type: test
-    uri: sqlite://test.db

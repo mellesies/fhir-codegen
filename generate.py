@@ -56,19 +56,19 @@ def get_structure_definitions(*trees):
 # ------------------------------------------------------------------------------
 # Generate source
 # ------------------------------------------------------------------------------
-def write_package_init():
+def write_package_init(output_folder):
 
     with open('template/template__package__init__.tpl') as fp:
         tpl = fp.read()
     
-    filename = os.path.join(ROOT_FOLDER, '__init__.py')
+    filename = os.path.join(output_folder, '__init__.py')
     t = Template(tpl, lstrip_blocks=True, trim_blocks=True)
     t.stream().dump('{}'.format(filename))
 # def write_package_init
 
-def write_model_init(processed_items=None):
-    if processed_items is None:
-        processed_items = list()
+def write_model_init(processed_items, output_folder):
+    # if processed_items is None:
+    #     processed_items = list()
     
     basic_types = list()
     
@@ -87,12 +87,12 @@ def write_model_init(processed_items=None):
         'timestamp': int(time()),
     }
 
-    folder = os.path.join(ROOT_FOLDER, MODEL_FOLDER)
+    folder = os.path.join(output_folder, MODEL_FOLDER)
     t = Template(tpl, lstrip_blocks=True, trim_blocks=True)
     t.stream(**kwargs).dump('{}/__init__.py'.format(folder))
 # def write_model_init
 
-def write_basic_types(structure_definitions):
+def write_basic_types(structure_definitions, output_folder):
     log = logging.getLogger(__name__)
     
     with open('template/template_type.tpl') as fp:
@@ -124,11 +124,11 @@ def write_basic_types(structure_definitions):
             'regex': regex,
         }
     
-        folder = os.path.join(ROOT_FOLDER, MODEL_FOLDER)
+        folder = os.path.join(output_folder, MODEL_FOLDER)
         t.stream(t=parameters, methods=base.METHODS).dump('{}/_{}.py'.format(folder, type_.lower()))
 # def write_basic_types
 
-def write_items(structure_definitions, items, processed=None):
+def write_items(structure_definitions, items, output_folder, processed=None):
     log = logging.getLogger(__name__)
     
     if processed is None:
@@ -138,7 +138,7 @@ def write_items(structure_definitions, items, processed=None):
         tpl = fp.read()
 
     t =  Template(tpl, lstrip_blocks=True, trim_blocks=True)
-    folder = os.path.join(ROOT_FOLDER, MODEL_FOLDER)
+    folder = os.path.join(output_folder, MODEL_FOLDER)
     
     for name in items:
         if name in ['FHIRBase', 'Element', 'Extension']:
@@ -156,7 +156,7 @@ def write_items(structure_definitions, items, processed=None):
         
         unprocessed_dependecies  = [dep for dep in dependencies if dep not in processed]
         processed.extend(unprocessed_dependecies)
-        write_items(structure_definitions, unprocessed_dependecies, processed)
+        write_items(structure_definitions, unprocessed_dependecies, output_folder, processed)
     
     processed = processed + items
     processed.sort()
@@ -292,7 +292,7 @@ def item_from_structure_definition(name, structure_definitions):
 # def item_from_structure_definition      
   
 
-def run(ftype, fresource, items, clear_model_folder=False):
+def run(ftype, fresource, output_folder, items, clear_model_folder=False):
     """Data Model.
         
     :param str ftype: filename for XML describing FHIR types
@@ -310,13 +310,17 @@ def run(ftype, fresource, items, clear_model_folder=False):
     if clear_model_folder:
         import shutil
         
-        shutil.rmtree(os.path.join(ROOT_FOLDER, MODEL_FOLDER))
-        os.makedirs(os.path.join(ROOT_FOLDER, MODEL_FOLDER))
+        try:
+            shutil.rmtree(os.path.join(output_folder, MODEL_FOLDER))
+        except:
+            pass
+        
+    os.makedirs(os.path.join(output_folder, MODEL_FOLDER))
                 
-    write_basic_types(structure_definitions)
-    processed_items = write_items(structure_definitions, items)
-    write_model_init(processed_items)
-    write_package_init()
+    write_basic_types(structure_definitions, output_folder)
+    processed_items = write_items(structure_definitions, items, output_folder)
+    write_model_init(processed_items, output_folder)
+    write_package_init(output_folder)
 # def run
     
     
@@ -333,10 +337,11 @@ if __name__ == '__main__':
         
         ftype = config['ftype']
         fresource = config['fresource']
+        output_folder = config['output_folder']
         items = config['items']
         clear_model_folder = config['clear_model_folder']
         
-        run(ftype, fresource, items, clear_model_folder)
+        run(ftype, fresource, output_folder, items, clear_model_folder)
         
             
     
