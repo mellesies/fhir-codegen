@@ -4,7 +4,7 @@ import datetime as dt
 import logging
 
 from . import Property, PropertyDefinition
-from . import FHIRBase, Element, Extension
+from . import FHIRBase, Element, Extension, Reference
 
 {% if r.name != 'BackboneElement' and classes|length > 0 %}
 from .backboneelement import BackboneElement
@@ -17,7 +17,7 @@ from .{{r.superclass.lower()}} import {{r.superclass}}
 from ._{{t|lower}} import {{t}}
 {% endfor %}
 
-{% for t in r.required_complex_types if t not in ['Element', 'Extension'] %}
+{% for t in r.required_complex_types if t not in ['Element', 'Extension', 'Reference'] %}
 from .{{t|lower}} import {{t}}
 {% endfor %}
 

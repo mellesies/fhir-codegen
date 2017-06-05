@@ -129,6 +129,8 @@ def write_basic_types(structure_definitions, output_folder):
 # def write_basic_types
 
 def write_items(structure_definitions, items, output_folder, processed=None):
+    if '' in items:
+        raise Exception('empty string in items!?')
     log = logging.getLogger(__name__)
     
     if processed is None:
@@ -207,7 +209,17 @@ def item_from_structure_definition(name, structure_definitions):
             # This is the root element for the item (e.g. path == 'Patient')
             item['docstring'] = textwrap.wrap(getValue(e, 'definition'))
             
-            superclass_ = getValue(e.find('type'), 'code', 'FHIRBase')
+            # DSTU2
+            superclass_ = getValue(sd, 'base', '')
+            
+            if not superclass_:
+                # STU3
+                superclass_ = getValue(sd, 'baseDefinition', 'FHIRBase')
+                
+            if superclass_ == 'FHIRBase' and name != 'Resource':
+                raise Exception('Could not determine superclass for {}'.format(name))
+            
+            superclass_ = superclass_.split('/')[-1]
             item['superclass'] = superclass_
             
             if superclass_ not in base.PRIMITIVE_TYPES.keys() and superclass_ != 'object':
@@ -249,14 +261,16 @@ def item_from_structure_definition(name, structure_definitions):
                 else:
                     type_ = types_[0]
             except:
-                type_ = e.find('nameReference').get('value')
-                type_ = type_[0].upper() + type_[1:]
-                # print('e.tag: {}'.format(e.tag))
-                # print('path.value: {}'.format(e.find('path').get('value')))
-                # print('path: {}'.format(path))
-                # print('name:   {}'.format(attr))
-                # print('types_: {}'.format(types_))
-                # print('type_: {}'.format(type_))
+                # DSTU2
+                try:
+                    type_ = e.find('nameReference').get('value')
+                    type_ = type_[0].upper() + type_[1:]
+                except:
+                    # STU3
+                    #<contentReference value="#Observation.referenceRange"/>
+                    type_ = e.find('contentReference').get('value')
+                    type_ = type_.split('.')[-1]
+                    type_ = type_[0].upper() + type_[1:]
                 # raise
 
             properties = OrderedDict([

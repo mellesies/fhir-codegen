@@ -32,7 +32,6 @@ METHODS = OrderedDict([
     ('le',   ['str', 'float', 'int']),
     ('gt',   ['str', 'float', 'int']),
     ('ge',   ['str', 'float', 'int']),
-    # ('cmp',  ['int', 'float']),
 ])
 
 COMPLEX_TYPES = [
@@ -62,7 +61,9 @@ COMPLEX_TYPES = [
     'Money',
     'Distance',
     'Duration',
-    'SimpleQuantity'
+    'SimpleQuantity',
+    'UsageContext',
+    'ContactDetail',
 ]
 
 VALUE_X = {
