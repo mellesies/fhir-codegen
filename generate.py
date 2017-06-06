@@ -10,16 +10,22 @@ import os
 import logging
 import xml.etree.ElementTree as ET
 import textwrap
+import re
 
 import base
-from jinja2 import Template
+from jinja2 import Environment, FileSystemLoader, Template, TemplateNotFound
 
 ROOT_FOLDER='fhir'
 MODEL_FOLDER='model'
 
+template_env = Environment(
+    loader=FileSystemLoader('template'),
+    lstrip_blocks=True,
+    trim_blocks=True,
+)
+
 
 def load_file_as_elementtree(filename):
-    import re
     log = logging.getLogger(__name__)
     
     log.debug("Loading XML from '{}'".format(filename))
@@ -56,20 +62,7 @@ def get_structure_definitions(*trees):
 # ------------------------------------------------------------------------------
 # Generate source
 # ------------------------------------------------------------------------------
-def write_package_init(output_folder):
-
-    with open('template/template__package__init__.tpl') as fp:
-        tpl = fp.read()
-    
-    filename = os.path.join(output_folder, '__init__.py')
-    t = Template(tpl, lstrip_blocks=True, trim_blocks=True)
-    t.stream().dump('{}'.format(filename))
-# def write_package_init
-
-def write_model_init(processed_items, output_folder):
-    # if processed_items is None:
-    #     processed_items = list()
-    
+def write_model_init(version, processed_items, output_folder):
     basic_types = list()
     
     for type_, primitive in base.PRIMITIVE_TYPES.items():
@@ -78,28 +71,22 @@ def write_model_init(processed_items, output_folder):
         }
         basic_types.append(parameters)
 
-    with open('template/template___init__.tpl') as fp:
-        tpl = fp.read()
-
     kwargs = {
+        'version': version,
         'basic_types': basic_types, 
         'processed_items': processed_items,
         'timestamp': int(time()),
     }
 
-    folder = os.path.join(output_folder, MODEL_FOLDER)
-    t = Template(tpl, lstrip_blocks=True, trim_blocks=True)
-    t.stream(**kwargs).dump('{}/__init__.py'.format(folder))
+    filename = os.path.join(output_folder, MODEL_FOLDER, '__init__.py')
+
+    tpl = template_env.get_template('template___init__.tpl')
+    tpl.stream(**kwargs).dump(filename)
 # def write_model_init
 
 def write_basic_types(structure_definitions, output_folder):
     log = logging.getLogger(__name__)
     
-    with open('template/template_type.tpl') as fp:
-        tpl = fp.read()
-
-    t =  Template(tpl, lstrip_blocks=True, trim_blocks=True)
-
     for type_, primitive in base.PRIMITIVE_TYPES.items():
         # FIXME: for some reason the Narrative resource defines a type 'xhtml'
         #        which has *no* structuredefinition!?
@@ -123,9 +110,16 @@ def write_basic_types(structure_definitions, output_folder):
             'primitive': primitive,
             'regex': regex,
         }
-    
-        folder = os.path.join(output_folder, MODEL_FOLDER)
-        t.stream(t=parameters, methods=base.METHODS).dump('{}/_{}.py'.format(folder, type_.lower()))
+
+        filename = os.path.join(output_folder, MODEL_FOLDER, '_{}.py'.format(type_.lower()))
+        
+        try:
+            tpl = template_env.get_template('template__{}.tpl'.format(type_.lower()))
+        except TemplateNotFound:
+            tpl = template_env.get_template('template_type.tpl')
+            
+        stream = tpl.stream(t=parameters, methods=base.METHODS)
+        stream.dump(filename)
 # def write_basic_types
 
 def write_items(structure_definitions, items, output_folder, processed=None):
@@ -136,10 +130,6 @@ def write_items(structure_definitions, items, output_folder, processed=None):
     if processed is None:
         processed = list()
     
-    with open('template/template_item.tpl') as fp:
-        tpl = fp.read()
-
-    t =  Template(tpl, lstrip_blocks=True, trim_blocks=True)
     folder = os.path.join(output_folder, MODEL_FOLDER)
     
     for name in items:
@@ -154,7 +144,14 @@ def write_items(structure_definitions, items, output_folder, processed=None):
             'classes': classes,
         }
         
-        t.stream(**kwargs).dump('{}/{}.py'.format(folder, name.lower()))
+        try:
+            tpl = template_env.get_template('template_{}.tpl'.format(name.lower()))
+        except TemplateNotFound:
+            tpl = template_env.get_template('template_item.tpl')
+        
+        filename = os.path.join(output_folder, MODEL_FOLDER, '{}.py'.format(name.lower()))
+        stream = tpl.stream(**kwargs)
+        stream.dump(filename)
         
         unprocessed_dependecies  = [dep for dep in dependencies if dep not in processed]
         processed.extend(unprocessed_dependecies)
@@ -172,7 +169,6 @@ def getValue(element, name, default=None):
         
     return element.find(name).get('value')
 # def getValue
-
 
 def item_from_structure_definition(name, structure_definitions):
     """Parses a StructureDefinition into a dictionary."""
@@ -333,8 +329,9 @@ def run(ftype, fresource, output_folder, items, clear_model_folder=False):
                 
     write_basic_types(structure_definitions, output_folder)
     processed_items = write_items(structure_definitions, items, output_folder)
-    write_model_init(processed_items, output_folder)
-    write_package_init(output_folder)
+        
+    version = getValue(structure_definitions['Element'], 'fhirVersion')
+    write_model_init(version, processed_items, output_folder)
 # def run
     
     
