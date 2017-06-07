@@ -14,11 +14,11 @@ from .backboneelement import BackboneElement
 from .{{r.superclass.lower()}} import {{r.superclass}}
 {% endif %}
 
-{% for t in r.required_basic_types %}
+{% for t in r.required_basic_types | sort %}
 from ._{{t|lower}} import {{t}}
 {% endfor %}
 
-{% for t in r.required_complex_types if t not in ['Element', 'Extension', 'Reference'] %}
+{% for t in r.required_complex_types | sort if t not in ['Element', 'Extension', 'Reference'] %}
 from .{{t|lower}} import {{t}}
 {% endfor %}
 {% endblock import %}
