@@ -4,7 +4,7 @@ from __future__ import print_function
 import datetime as dt
 import logging
 
-from . import Property, PropertyDefinition, BaseType, dateTimeBase
+from . import Property, DateTimeProperty, PropertyDefinition, BaseType, dateTimeBase
 {% endblock import %}
 
 __all__ = ['{{t.classname}}', ]
@@ -170,7 +170,7 @@ class {{t.classname}}(dateTimeBase):
     _regex = {% if t.regex == None %}None{% else %}'{{t.regex}}'{% endif %}
     
     
-    value = Property(PropertyDefinition('value', str, '1', '1', 'xmlAttr'))
+    value = DateTimeProperty(PropertyDefinition('value', str, '1', '1', 'xmlAttr'))
 
 {% else %}
 class {{t.classname}}(BaseType):
