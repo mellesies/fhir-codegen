@@ -20,10 +20,10 @@ applications:
       format:       "%(asctime)s - %(name)-14s - %(levelname)-8s - %(message)s"
     
     clear_model_folder: True
-    ftype: input-stu3/profiles-types.xml
-    fresource: input-stu3/profiles-resources.xml
-    # ftype: input-dstu2/profiles-types.xml
-    # fresource: input-dstu2/profiles-resources.xml
+    # ftype: input-stu3/profiles-types.xml
+    # fresource: input-stu3/profiles-resources.xml
+    ftype: input-dstu2/profiles-types.xml
+    fresource: input-dstu2/profiles-resources.xml
     output_folder: '../py-fhir/fhir'
     items: [Bundle, Patient, Observation, Composition, Questionnaire, QuestionnaireResponse, Reference]
 
