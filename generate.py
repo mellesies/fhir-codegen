@@ -98,6 +98,9 @@ def write_basic_types(structure_definitions, output_folder):
         snapshot = sd.find('.//snapshot')
         
         extension = snapshot.find('.//extension[@url="http://hl7.org/fhir/StructureDefinition/structuredefinition-regex"]')
+        if extension is None:
+            extension = snapshot.find('.//extension[@url="http://hl7.org/fhir/StructureDefinition/regex"]')
+        
         if extension is not None:
             regex = extension.find('valueString').get('value')
         else:
@@ -224,7 +227,7 @@ def item_from_structure_definition(name, structure_definitions):
             # This can be:
             # - an attribute to the resource (e.g. 'id')
             # - an element/attribute to an inline type (e.g. 'contact.name').
-            
+
             # Get the parent and the attribute
             parent = root
             attr = path[-1].replace('[x]', '')
@@ -233,11 +236,13 @@ def item_from_structure_definition(name, structure_definitions):
                 attr = attr + '_'
             
             if len(path) > 1:
+                # Iterate over the items in path *except* the _last_ item
                 for component in path[:-1]:
                     parent = parent['attributes'][component]
                 
             types_ = list()
             for type_ in e.findall('type'):
+
                 t = getValue(type_, 'code')
                 if t in base.PRIMITIVE_TYPES:
                     root['required_basic_types'].add(t)
@@ -246,28 +251,29 @@ def item_from_structure_definition(name, structure_definitions):
                     dependencies.add(t) 
                 
                 if t == 'Reference':
-                    url = getValue(type_, 'profile')
-                    t = 'Reference(reference="{}")'.format(url)
-                    
+                    url_list = []
+                    for targetProfile in type_.findall('targetProfile'):
+                        url_list.append(targetProfile.get('value'))
+
+                    t = 'Reference("{}")'.format('", "'.join(url_list))
+
                 types_.append(t)
             
-            try:
-                if len(types_) > 1:
-                    type_ = types_
-                else:
-                    type_ = types_[0]
-            except:
-                # DSTU2
-                try:
-                    type_ = e.find('nameReference').get('value')
-                    type_ = type_[0].upper() + type_[1:]
-                except:
-                    # STU3
-                    #<contentReference value="#Observation.referenceRange"/>
-                    type_ = e.find('contentReference').get('value')
-                    type_ = type_.split('.')[-1]
-                    type_ = type_[0].upper() + type_[1:]
-                # raise
+            if len(types_) == 0:
+                # If types_ is an empty list, we're dealing with a 
+                # contentReference. This is a reference to an inline type 
+                # (BackboneElement) that was defined earlier, for example:
+                #   <contentReference value="#Observation.referenceRange"/>
+                type_ = e.find('contentReference').get('value')
+                type_ = type_.split('.')[-1]
+                type_ = type_[0].upper() + type_[1:]
+
+            elif len(types_) == 1:
+                type_ = types_[0]
+
+            else:
+                type_ = types_
+            
 
             properties = OrderedDict([
                 ('name', attr),
@@ -336,10 +342,10 @@ def run(ftype, fresource, output_folder, items, clear_model_folder=False):
     
     
 if __name__ == '__main__':
-    # ./run.py input/profiles-types.xml input/profiles-resources.xml Patient
+    # ./generate.py input/profiles-types.xml input/profiles-resources.xml Patient
     
     if len(sys.argv) > 1:
-        run(sys.argv[1], sys.argv[2], sys.argv[3:])
+        run(sys.argv[1], sys.argv[2], *sys.argv[3:])
         
     else:
         import util

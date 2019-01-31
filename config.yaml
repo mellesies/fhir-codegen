@@ -22,8 +22,17 @@ applications:
     clear_model_folder: True
     # ftype: input-stu3/profiles-types.xml
     # fresource: input-stu3/profiles-resources.xml
-    ftype: input-dstu2/profiles-types.xml
-    fresource: input-dstu2/profiles-resources.xml
-    output_folder: '../py-fhir/fhir'
-    items: [Bundle, Patient, Observation, Composition, Questionnaire, QuestionnaireResponse, Reference]
+    ftype: input-r4/profiles-types.xml
+    fresource: input-r4/profiles-resources.xml
+    output_folder: '../py-fhir/fhir4'
+    items:
+      - Bundle
+      - Patient
+      - Observation
+      - Composition
+      - Questionnaire
+      - QuestionnaireResponse
+      - Reference
+      - Medication
+      - MedicationRequest
 

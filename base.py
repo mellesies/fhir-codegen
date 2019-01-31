@@ -13,6 +13,8 @@ PRIMITIVE_TYPES = OrderedDict([
     ('date', 'dateTimeBase'),
     ('decimal', 'float'),
     ('uri', 'str'),
+    ('canonical', 'str'),
+    ('url', 'str'),
     ('id', 'str'),
     ('base64Binary', 'str'),
     ('time', 'dateTimeBase'),
@@ -64,6 +66,7 @@ COMPLEX_TYPES = [
     'SimpleQuantity',
     'UsageContext',
     'ContactDetail',
+    'Dosage',
 ]
 
 VALUE_X = {
