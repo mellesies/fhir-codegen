@@ -9,7 +9,7 @@ applications:
       backup_count: 5                      # Number of logs to keep
       max_size:     1024                   # Specified in kB (i.e. 1024 means a maximum file size of 1MB)
       format:       "%(asctime)s - %(name)-14s - %(levelname)-8s - %(message)s"
-  
+
   generate:
     logging:
       level:        DEBUG                  # Can be on of 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
@@ -18,7 +18,7 @@ applications:
       backup_count: 5                      # Number of logs to keep
       max_size:     1024                   # Specified in kB (i.e. 1024 means a maximum file size of 1MB)
       format:       "%(asctime)s - %(name)-14s - %(levelname)-8s - %(message)s"
-    
+
     clear_model_folder: True
     # ftype: input-stu3/profiles-types.xml
     # fresource: input-stu3/profiles-resources.xml
@@ -27,6 +27,8 @@ applications:
     output_folder: '../py-fhir/fhir4'
     items:
       - Bundle
+      - Encounter
+      - EpisodeOfCare
       - Patient
       - Observation
       - Composition
@@ -35,4 +37,7 @@ applications:
       - Reference
       - Medication
       - MedicationRequest
+      - OperationOutcome
+      - ValueSet
+      - CodeableConcept
 
